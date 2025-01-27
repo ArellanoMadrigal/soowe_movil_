@@ -42,9 +42,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void _toggleNotifications() => setState(() => _showNotifications = !_showNotifications);
   void _navigateToProfile() => setState(() => _selectedIndex = 2);
   void _logout() {
-  _apiService.logout();
-  Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-}
+    _apiService.logout();
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _ServicesView extends StatelessWidget {
+class _ServicesView extends StatefulWidget {
   final VoidCallback onProfileTap;
   final VoidCallback onNotificationTap;
   final ApiService apiService;
@@ -108,6 +108,19 @@ class _ServicesView extends StatelessWidget {
     required this.onNotificationTap,
     required this.apiService,
   });
+
+  @override
+  State<_ServicesView> createState() => _ServicesViewState();
+}
+
+class _ServicesViewState extends State<_ServicesView> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -153,7 +166,7 @@ class _ServicesView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: GestureDetector(
-          onTap: onProfileTap,
+          onTap: widget.onProfileTap,
           child: const Row(
             children: [
               CircleAvatar(child: Icon(Icons.person_outline)),
@@ -164,8 +177,9 @@ class _ServicesView extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            onPressed: onNotificationTap,
+            onPressed: widget.onNotificationTap,
             icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Notificaciones',
           ),
         ],
       ),
@@ -178,14 +192,30 @@ class _ServicesView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       '¿Cómo podemos ayudarte?',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     SearchBar(
-                      hintText: 'Busca en más de 20 servicios',
+                      hintText: 'Busca en más de 20 categorias',
+                      controller: _searchController,
                       leading: const Icon(Icons.search),
+                      trailing: [
+                        if (_searchController.text.isNotEmpty)
+                          IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {});
+                            },
+                          ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {});
+                      },
                     ),
                   ],
                 ),
@@ -245,32 +275,41 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
     return Card(
-      elevation: 0,
-      color: Theme.of(context).colorScheme.primaryContainer,
-      child: InkWell(
-        onTap: onTap,
+      elevation: 2,
+      surfaceTintColor: colorScheme.surfaceTint,
+      child: Material(
+        color: colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(service.icon, size: 24),
-              const Spacer(),
-              Text(
-                service.title,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${service.nurses} enfermeros',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  service.icon,
+                  size: 24,
+                  color: colorScheme.primary,
                 ),
-              ),
-            ],
+                const Spacer(),
+                Text(
+                  service.title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${service.nurses} enfermeros',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -310,6 +349,7 @@ class _NotificationsOverlay extends StatelessWidget {
                     trailing: IconButton(
                       icon: const Icon(Icons.close),
                       onPressed: onDismiss,
+                      tooltip: 'Cerrar notificaciones',
                     ),
                   ),
                   const Divider(),
