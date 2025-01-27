@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../services/api_services.dart';
-import 'nurses_list_screen.dart';
+import '../../transitions/search_page_transition.dart';
 import 'profile_view.dart';
 import 'requests_view.dart';
+import 'categories_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -115,6 +116,53 @@ class _ServicesView extends StatefulWidget {
 
 class _ServicesViewState extends State<_ServicesView> {
   final TextEditingController _searchController = TextEditingController();
+  final services = [
+    ServiceModel(
+      id: '1',
+      title: 'Cuidados Básicos\ndel Paciente',
+      nurses: 1265,
+      icon: Icons.medical_services_outlined,
+    ),
+    ServiceModel(
+      id: '2',
+      title: 'Atención\nPostoperatoria',
+      nurses: 523,
+      icon: Icons.healing_outlined,
+    ),
+    ServiceModel(
+      id: '3',
+      title: 'Suturas y Retiro\nde Suturas',
+      nurses: 223,
+      icon: Icons.cut_outlined,
+    ),
+    ServiceModel(
+      id: '4',
+      title: 'Limpieza y\nCuración de\nHeridas',
+      nurses: 223,
+      icon: Icons.cleaning_services_outlined,
+    ),
+    ServiceModel(
+      id: '5',
+      title: 'Control de\nEnfermedades\nCrónicas',
+      nurses: 223,
+      icon: Icons.monitor_heart_outlined,
+    ),
+    ServiceModel(
+      id: '6',
+      title: 'Vacunación',
+      nurses: 223,
+      icon: Icons.vaccines_outlined,
+    ),
+  ];
+
+  void _navigateToCategories() {
+    Navigator.push(
+      context,
+      SearchPageTransition(
+        page: const CategoriesScreen(),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -124,45 +172,6 @@ class _ServicesViewState extends State<_ServicesView> {
 
   @override
   Widget build(BuildContext context) {
-    final services = [
-      ServiceModel(
-        id: '1',
-        title: 'Cuidados Básicos\ndel Paciente',
-        nurses: 1265,
-        icon: Icons.medical_services_outlined,
-      ),
-      ServiceModel(
-        id: '2',
-        title: 'Atención\nPostoperatoria',
-        nurses: 523,
-        icon: Icons.healing_outlined,
-      ),
-      ServiceModel(
-        id: '3',
-        title: 'Suturas y Retiro\nde Suturas',
-        nurses: 223,
-        icon: Icons.cut_outlined,
-      ),
-      ServiceModel(
-        id: '4',
-        title: 'Limpieza y\nCuración de\nHeridas',
-        nurses: 223,
-        icon: Icons.cleaning_services_outlined,
-      ),
-      ServiceModel(
-        id: '5',
-        title: 'Control de\nEnfermedades\nCrónicas',
-        nurses: 223,
-        icon: Icons.monitor_heart_outlined,
-      ),
-      ServiceModel(
-        id: '6',
-        title: 'Vacunación',
-        nurses: 223,
-        icon: Icons.vaccines_outlined,
-      ),
-    ];
-
     return Scaffold(
       appBar: AppBar(
         title: GestureDetector(
@@ -199,23 +208,38 @@ class _ServicesViewState extends State<_ServicesView> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    SearchBar(
-                      hintText: 'Busca en más de 20 categorias',
-                      controller: _searchController,
-                      leading: const Icon(Icons.search),
-                      trailing: [
-                        if (_searchController.text.isNotEmpty)
-                          IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {});
-                            },
+                    Hero(
+                      tag: 'searchBar',
+                      child: Material(
+                        color: Colors.transparent,
+                        child: Container(
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(28),
                           ),
-                      ],
-                      onChanged: (value) {
-                        setState(() {});
-                      },
+                          child: InkWell(
+                            onTap: _navigateToCategories,
+                            borderRadius: BorderRadius.circular(28),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.search, size: 22),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Busca en más de 20 categorías',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -231,14 +255,7 @@ class _ServicesViewState extends State<_ServicesView> {
                   itemCount: services.length,
                   itemBuilder: (context, index) => _ServiceCard(
                     service: services[index],
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => LongList(),
-                        ),
-                      );
-                    },
+                    onTap: _navigateToCategories,
                   ),
                 ),
               ),
