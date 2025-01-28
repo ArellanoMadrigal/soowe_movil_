@@ -28,6 +28,6 @@ class SearchPageTransition extends PageRouteBuilder {
               ),
             );
           },
-          transitionDuration: const Duration(milliseconds: 300),
+          transitionDuration: const Duration(milliseconds: 600),
         );
 }
