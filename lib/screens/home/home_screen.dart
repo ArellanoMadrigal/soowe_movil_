@@ -4,6 +4,7 @@ import '../../transitions/search_page_transition.dart';
 import 'profile_view.dart';
 import 'requests_view.dart';
 import 'categories_screen.dart';
+import 'solict_medical.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -164,6 +165,15 @@ class _ServicesViewState extends State<_ServicesView> {
     );
   }
 
+  void _navigateToSolicitMedical() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SolictMedicalScreen(),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -255,7 +265,7 @@ class _ServicesViewState extends State<_ServicesView> {
                   itemCount: services.length,
                   itemBuilder: (context, index) => _ServiceCard(
                     service: services[index],
-                    onTap: _navigateToCategories,
+                    onTap: _navigateToSolicitMedical,
                   ),
                 ),
               ),
