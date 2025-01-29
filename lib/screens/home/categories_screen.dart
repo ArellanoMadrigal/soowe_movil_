@@ -85,7 +85,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with SingleTickerPr
                             controller: _searchController,
                             autofocus: true,
                             decoration: InputDecoration(
-                              hintText: 'Buscar categorias...',
+                              hintText: 'Buscar servicio...',
                               hintStyle: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 16,
@@ -134,7 +134,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with SingleTickerPr
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Categorías Populares',
+                                'Servicios Populares',
                                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
