@@ -271,7 +271,7 @@ class _ServicesViewState extends State<_ServicesView> {
                                 ),
                                 const SizedBox(width: 12),
                                 Text(
-                                  'Busca en más de 20 categorías',
+                                  'Busca en más de 20 servicios',
                                   style: TextStyle(
                                     color: colorScheme.onSurfaceVariant,
                                     fontSize: 16,

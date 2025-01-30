@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'solicit_medical.dart';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -13,6 +14,38 @@ class _CategoriesScreenState extends State<CategoriesScreen> with SingleTickerPr
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+
+  // Lista de servicios populares
+  final List<_CategoryData> _popularServices = [
+    _CategoryData('Administración de Medicamentos', 890),
+    _CategoryData('Curaciones y Vendajes', 856),
+    _CategoryData('Control de Signos Vitales', 832),
+    _CategoryData('Cuidados Post-Operatorios', 815),
+  ];
+
+  // Lista de servicios destacados
+  final List<_CategoryData> _featuredServices = [
+    _CategoryData('Aplicación de Inyecciones', 798),
+    _CategoryData('Toma de Muestras', 765),
+    _CategoryData('Cuidados de Sonda Vesical', 743),
+    _CategoryData('Cuidados de Úlceras', 721),
+    _CategoryData('Sonda Nasogástrica', 698),
+    _CategoryData('Rehabilitación Básica', 676),
+    _CategoryData('Cuidados de Ostomías', 654),
+    _CategoryData('Control de Diabetes', 632),
+    _CategoryData('Terapia de Oxígeno', 610),
+    _CategoryData('Aspiración de Secreciones', 589),
+    _CategoryData('Cuidados Paliativos', 567),
+    _CategoryData('Nutrición Enteral', 545),
+    _CategoryData('Cuidados Geriátricos', 523),
+    _CategoryData('Terapia Física', 501),
+    _CategoryData('Bombas de Infusión', 478),
+    _CategoryData('Heridas Crónicas', 456),
+    _CategoryData('Control de Presión', 434),
+    _CategoryData('Cuidados Neonatales', 412),
+    _CategoryData('Electrocardiogramas', 390),
+    _CategoryData('Terapia Respiratoria', 368),
+  ];
 
   @override
   void initState() {
@@ -47,6 +80,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with SingleTickerPr
     _animationController.dispose();
     super.dispose();
   }
+
+  List<_CategoryData> get _allServices => [..._popularServices, ..._featuredServices];
 
   @override
   Widget build(BuildContext context) {
@@ -140,16 +175,16 @@ class _CategoriesScreenState extends State<CategoriesScreen> with SingleTickerPr
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              _PopularCategoriesGrid(),
+                              _PopularServicesGrid(services: _popularServices),
                               const SizedBox(height: 32),
                               Text(
-                                'Todas las Categorías',
+                                'Servicios Destacados',
                                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              _AllCategoriesList(),
+                              _FeaturedServicesGrid(services: _featuredServices),
                             ],
                           ),
                         ),
@@ -163,15 +198,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> with SingleTickerPr
   }
 
   Widget _buildSuggestions() {
-    final suggestions = [
-      _CategoryData('Cuidados Básicos del Paciente', 1265),
-      _CategoryData('Atención Postoperatoria', 523),
-      _CategoryData('Suturas y Retiro de Suturas', 223),
-      _CategoryData('Limpieza y Curación de Heridas', 223),
-      _CategoryData('Control de Enfermedades Crónicas', 223),
-      _CategoryData('Vacunación', 223),
-    ].where((category) =>
-        category.name.toLowerCase().contains(_searchController.text.toLowerCase())).toList();
+    final suggestions = _allServices
+        .where((service) =>
+            service.name.toLowerCase().contains(_searchController.text.toLowerCase()))
+        .toList();
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -179,10 +209,16 @@ class _CategoriesScreenState extends State<CategoriesScreen> with SingleTickerPr
       itemBuilder: (context, index) {
         final suggestion = suggestions[index];
         return ListTile(
-          leading: const Icon(Icons.search, size: 20),
+          leading: const Icon(Icons.medical_services_outlined, size: 20),
           title: Text(suggestion.name),
+          subtitle: Text('${suggestion.nursesCount} enfermeros disponibles'),
           onTap: () {
-            // TODO: Implementar navegación a la categoría
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const SolicitMedicalScreen(),
+              ),
+            );
           },
         );
       },
@@ -190,17 +226,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> with SingleTickerPr
   }
 }
 
-// El resto de las clases permanecen igual...
-class _PopularCategoriesGrid extends StatelessWidget {
+class _PopularServicesGrid extends StatelessWidget {
+  final List<_CategoryData> services;
+
+  const _PopularServicesGrid({required this.services});
+
   @override
   Widget build(BuildContext context) {
-    final popularCategories = [
-      _CategoryData('Inyecciones', 890),
-      _CategoryData('Curaciones', 756),
-      _CategoryData('Terapia Física', 432),
-      _CategoryData('Cuidados Intensivos', 345),
-    ];
-
     return LayoutBuilder(
       builder: (context, constraints) {
         return GridView.builder(
@@ -208,13 +240,16 @@ class _PopularCategoriesGrid extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: constraints.maxWidth > 600 ? 4 : 2,
-            childAspectRatio: 1.5,
+            childAspectRatio: 1.3,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
-          itemCount: popularCategories.length,
+          itemCount: services.length,
           itemBuilder: (context, index) {
-            return _PopularCategoryCard(category: popularCategories[index]);
+            return _ServiceCard(
+              category: services[index],
+              isPopular: true,
+            );
           },
         );
       },
@@ -222,34 +257,45 @@ class _PopularCategoriesGrid extends StatelessWidget {
   }
 }
 
-class _AllCategoriesList extends StatelessWidget {
+class _FeaturedServicesGrid extends StatelessWidget {
+  final List<_CategoryData> services;
+
+  const _FeaturedServicesGrid({required this.services});
+
   @override
   Widget build(BuildContext context) {
-    final allCategories = [
-      _CategoryData('Cuidados Básicos del Paciente', 1265),
-      _CategoryData('Atención Postoperatoria', 523),
-      _CategoryData('Suturas y Retiro de Suturas', 223),
-      _CategoryData('Limpieza y Curación de Heridas', 223),
-      _CategoryData('Control de Enfermedades Crónicas', 223),
-      _CategoryData('Vacunación', 223),
-    ];
-
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: allCategories.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        return _CategoryListTile(category: allCategories[index]);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: constraints.maxWidth > 600 ? 3 : 2,
+            childAspectRatio: 1.3,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: services.length,
+          itemBuilder: (context, index) {
+            return _ServiceCard(
+              category: services[index],
+              isPopular: false,
+            );
+          },
+        );
       },
     );
   }
 }
 
-class _PopularCategoryCard extends StatelessWidget {
+class _ServiceCard extends StatelessWidget {
   final _CategoryData category;
+  final bool isPopular;
 
-  const _PopularCategoryCard({required this.category});
+  const _ServiceCard({
+    required this.category,
+    required this.isPopular,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -257,10 +303,17 @@ class _PopularCategoryCard extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      color: colorScheme.surfaceVariant.withOpacity(0.3),
+      color: isPopular 
+          ? colorScheme.primaryContainer.withOpacity(0.3)
+          : colorScheme.surfaceVariant.withOpacity(0.3),
       child: InkWell(
         onTap: () {
-          // TODO: Implementar navegación a la categoría
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const SolicitMedicalScreen(),
+            ),
+          );
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -281,61 +334,10 @@ class _PopularCategoryCard extends StatelessWidget {
               Text(
                 '${category.nursesCount} enfermeros',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                  color: isPopular 
+                      ? colorScheme.onPrimaryContainer 
+                      : colorScheme.onSurfaceVariant,
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CategoryListTile extends StatelessWidget {
-  final _CategoryData category;
-
-  const _CategoryListTile({required this.category});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Card(
-      elevation: 0,
-      color: colorScheme.surfaceVariant.withOpacity(0.3),
-      child: InkWell(
-        onTap: () {
-          // TODO: Implementar navegación a la categoría
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      category.name,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${category.nursesCount} enfermeros',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right,
-                color: colorScheme.onSurfaceVariant,
               ),
             ],
           ),
