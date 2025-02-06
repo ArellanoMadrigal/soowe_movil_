@@ -240,7 +240,7 @@ class _ServicesViewState extends State<_ServicesView> {
                     '¿Cómo podemos ayudarte?',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: colorScheme.onBackground,
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -251,7 +251,7 @@ class _ServicesViewState extends State<_ServicesView> {
                       child: Container(
                         height: 56,
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceVariant.withOpacity(0.3),
+                          color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(28),
                           border: Border.all(
                             color: colorScheme.outline.withOpacity(0.1),
@@ -351,7 +351,7 @@ class _ServiceCard extends StatelessWidget {
         ),
       ),
       child: Material(
-        color: colorScheme.surfaceVariant.withOpacity(0.3),
+        color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
           onTap: onTap,
@@ -490,7 +490,7 @@ class _NotificationsOverlay extends StatelessWidget {
                           ),
                           leading: CircleAvatar(
                             backgroundColor: notification['read']
-                                ? Theme.of(context).colorScheme.surfaceVariant
+                                ? Theme.of(context).colorScheme.surfaceContainerHighest
                                 : Theme.of(context).colorScheme.primary.withOpacity(0.1),
                             child: Icon(
                               Icons.notifications,

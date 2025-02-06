@@ -205,8 +205,8 @@ class LongListState extends State<LongList> {
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addUser,
-        child: const Icon(Icons.add),
         tooltip: 'Agregar Usuario',
+        child: const Icon(Icons.add),
       ),
     );
   }

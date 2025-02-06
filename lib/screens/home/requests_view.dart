@@ -123,7 +123,7 @@ class _RequestList extends StatelessWidget {
                       radius: 24,
                       backgroundColor: isActive
                           ? Theme.of(context).colorScheme.primaryContainer
-                          : Theme.of(context).colorScheme.surfaceVariant,
+                          : Theme.of(context).colorScheme.surfaceContainerHighest,
                       child: Icon(
                         isActive
                             ? Icons.medical_services_outlined
