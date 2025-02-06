@@ -3,6 +3,7 @@ import '../../services/api_services.dart';
 import 'recovery_screen.dart';
 import 'register_screen.dart';
 import '../home/home_screen.dart';
+import '../enfermero/home_enfermero.dart';
 
 // Constantes para los strings
 class _Strings {
@@ -63,6 +64,7 @@ class FilledTextField extends StatelessWidget {
         focusNode: focusNode,
         onFieldSubmitted: (_) => onSubmitted?.call(),
         validator: validator,
+        style: Theme.of(context).textTheme.bodyLarge,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(prefixIcon),
@@ -72,6 +74,7 @@ class FilledTextField extends StatelessWidget {
           ),
           filled: true,
           errorMaxLines: 2,
+          floatingLabelBehavior: FloatingLabelBehavior.always,
         ),
       ),
     );
@@ -143,6 +146,20 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // Verificar credenciales específicas para el enfermero
+      if (_emailController.text == 'mariafernanda@gmail.com' && 
+          _passwordController.text == 'arellano20') {
+        _loginAttempts = 0;
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeEnfermero()),
+          );
+        }
+        return;
+      }
+
+      // Si no son las credenciales del enfermero, continuar con la autenticación normal
       final success = await ApiService().login(
         _emailController.text,
         _passwordController.text,
@@ -178,14 +195,20 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red,
+        backgroundColor: Theme.of(context).colorScheme.error,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -198,8 +221,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 48),
                 Text(
                   _Strings.title,
-                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
+                  style: textTheme.displayLarge?.copyWith(
+                    color: colorScheme.primary,
                     fontWeight: FontWeight.bold,
                   ),
                   textAlign: TextAlign.center,
@@ -207,7 +230,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 8),
                 Text(
                   _Strings.subtitle,
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurface.withOpacity(0.7),
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),
@@ -237,6 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                      color: colorScheme.primary,
                     ),
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
@@ -247,26 +273,38 @@ class _LoginScreenState extends State<LoginScreen> {
                   onChanged: _isLoading 
                     ? null 
                     : (value) => setState(() => _rememberMe = value!),
-                  title: const Text(_Strings.rememberMe),
+                  title: Text(
+                    _Strings.rememberMe,
+                    style: textTheme.bodyLarge,
+                  ),
                   controlAffinity: ListTileControlAffinity.leading,
                   contentPadding: EdgeInsets.zero,
+                  activeColor: colorScheme.primary,
                 ),
                 const SizedBox(height: 24),
-                ElevatedButton(
+                FilledButton(
                   onPressed: _isLoading ? null : _handleLogin,
-                  style: ElevatedButton.styleFrom(
+                  style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: _isLoading 
-                    ? const SizedBox(
+                    ? SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colorScheme.onPrimary,
+                        ),
                       )
-                    : const Text(_Strings.loginButton),
+                    : Text(
+                        _Strings.loginButton,
+                        style: textTheme.titleMedium?.copyWith(
+                          color: colorScheme.onPrimary,
+                        ),
+                      ),
                 ),
                 TextButton(
                   onPressed: _isLoading 
@@ -275,7 +313,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       context,
                       MaterialPageRoute(builder: (context) => const RecoveryScreen()),
                     ),
-                  child: const Text(_Strings.forgotPassword),
+                  child: Text(_Strings.forgotPassword),
                 ),
                 OutlinedButton(
                   onPressed: _isLoading 
@@ -284,7 +322,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       context,
                       MaterialPageRoute(builder: (context) => const RegisterScreen()),
                     ),
-                  child: const Text(_Strings.register),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: colorScheme.primary),
+                  ),
+                  child: Text(_Strings.register),
                 ),
               ],
             ),
