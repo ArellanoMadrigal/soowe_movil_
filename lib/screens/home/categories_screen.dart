@@ -305,7 +305,7 @@ class _ServiceCard extends StatelessWidget {
       elevation: 0,
       color: isPopular 
           ? colorScheme.primaryContainer.withOpacity(0.3)
-          : colorScheme.surfaceVariant.withOpacity(0.3),
+          : colorScheme.surfaceContainerHighest.withOpacity(0.3),
       child: InkWell(
         onTap: () {
           Navigator.push(

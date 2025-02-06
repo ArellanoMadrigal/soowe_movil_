@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
 
 class SolicitMedicalScreen extends StatefulWidget {
   const SolicitMedicalScreen({super.key});
@@ -13,7 +11,7 @@ class SolicitMedicalScreen extends StatefulWidget {
 class _SolicitMedicalScreenState extends State<SolicitMedicalScreen> {
   final PageController _pageController = PageController();
   int currentStep = 0;
-  
+
   // Date selection
   DateTime selectedDate = DateTime.now();
   TimeOfDay selectedTime = TimeOfDay.now();
@@ -62,9 +60,9 @@ class _SolicitMedicalScreenState extends State<SolicitMedicalScreen> {
         title: Text(
           'Nueva Solicitud',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: Colors.black87,
-            fontWeight: FontWeight.w500,
-          ),
+                color: Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
         ),
       ),
       body: Column(
@@ -79,7 +77,8 @@ class _SolicitMedicalScreenState extends State<SolicitMedicalScreen> {
                   selectedTimeOption: _selectedTimeOption,
                   selectedDate: selectedDate,
                   selectedTime: selectedTime,
-                  onTimeOptionChanged: (value) => setState(() => _selectedTimeOption = value),
+                  onTimeOptionChanged: (value) =>
+                      setState(() => _selectedTimeOption = value),
                   onDateChanged: (date) => setState(() => selectedDate = date),
                   onTimeChanged: (time) => setState(() => selectedTime = time),
                 ),
@@ -213,7 +212,8 @@ class _StepIndicator extends StatelessWidget {
                       ),
                       child: Center(
                         child: isCompleted
-                            ? const Icon(Icons.check, color: Colors.white, size: 16)
+                            ? const Icon(Icons.check,
+                                color: Colors.white, size: 16)
                             : Text(
                                 '${index + 1}',
                                 style: const TextStyle(
@@ -355,8 +355,12 @@ class _DateStep extends StatelessWidget {
               option,
               style: TextStyle(
                 fontSize: 15,
-                color: selectedTimeOption == option ? Colors.black87 : Colors.grey[600],
-                fontWeight: selectedTimeOption == option ? FontWeight.w500 : FontWeight.normal,
+                color: selectedTimeOption == option
+                    ? Colors.black87
+                    : Colors.grey[600],
+                fontWeight: selectedTimeOption == option
+                    ? FontWeight.w500
+                    : FontWeight.normal,
               ),
             ),
           ],
@@ -373,6 +377,7 @@ class _DateStep extends StatelessWidget {
           initialDate: selectedDate,
           firstDate: DateTime.now(),
           lastDate: DateTime.now().add(const Duration(days: 365)),
+          locale: const Locale('es', ''), // Se especifica el locale en español
         );
         if (picked != null) onDateChanged(picked);
       },
@@ -483,7 +488,7 @@ class _PatientStep extends StatelessWidget {
     );
   }
 
-Widget _buildTextField({
+  Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
@@ -573,7 +578,8 @@ class _LocationStep extends StatelessWidget {
             child: TextFormField(
               decoration: InputDecoration(
                 labelText: 'Dirección completa',
-                prefixIcon: Icon(Icons.location_on, color: Colors.grey[600], size: 20),
+                prefixIcon:
+                    Icon(Icons.location_on, color: Colors.grey[600], size: 20),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide.none,
@@ -672,7 +678,8 @@ class _PaymentStep extends StatelessWidget {
         ),
       ),
       child: ListTile(
-        leading: Icon(icon, 
+        leading: Icon(
+          icon,
           color: isSelected ? Colors.blue : Colors.grey[600],
           size: 24,
         ),
@@ -684,7 +691,9 @@ class _PaymentStep extends StatelessWidget {
         ),
         subtitle: Text(subtitle),
         trailing: Icon(
-          isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+          isSelected
+              ? Icons.radio_button_checked
+              : Icons.radio_button_unchecked,
           color: isSelected ? Colors.blue : Colors.grey[400],
           size: 20,
         ),
