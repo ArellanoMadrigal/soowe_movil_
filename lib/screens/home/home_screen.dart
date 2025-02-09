@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/api_services.dart';
+import '../../services/api_service.dart';
 import '../../transitions/search_page_transition.dart';
 import 'profile_view.dart';
 import 'requests_view.dart';

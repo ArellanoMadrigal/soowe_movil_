@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/api_services.dart';
+import '../../services/api_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
  final String name;
