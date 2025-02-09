@@ -25,6 +25,11 @@ class ApiService {
     _dio.options.headers['Authorization'] = 'Bearer $token';
   }
 
+  // Method to get the current auth token
+  String? getAuthToken() {
+    return _authToken;
+  }
+
   // Method to clean auth token after login out
   void clearAuthToken() {
     _authToken = null;

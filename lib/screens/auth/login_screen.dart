@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 import 'recovery_screen.dart';
 import 'register_screen.dart';
 import '../home/home_screen.dart';
@@ -160,9 +160,9 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       // Si no son las credenciales del enfermero, continuar con la autenticación normal
-      final success = await ApiService().login(
-        _emailController.text,
-        _passwordController.text,
+      final success = await AuthService().loginUser(
+        correo: _emailController.text,
+        contrasena: _passwordController.text,
       );
 
       if (success) {
