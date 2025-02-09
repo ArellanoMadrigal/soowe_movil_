@@ -15,7 +15,7 @@ class AuthService {
   }) async {
     try {
       final response = await _apiService.dio.post(
-        '/auth/registerMobile',
+        '/registerMobile',
         data: {
           'nombre': nombre,
           'apellido': apellido,
@@ -42,7 +42,7 @@ class AuthService {
   }) async {
     try {
       final response = await _apiService.dio.post(
-        '/auth/loginMobile',
+        '/loginMobile',
         data: {
           'correo': correo,
           'contrasena': contrasena,

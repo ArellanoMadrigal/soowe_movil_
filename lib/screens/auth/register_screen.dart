@@ -170,11 +170,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final success = await AuthService().registerUser(
         nombre: _nameController.text,
-        apellido: _emailController.text,
-        correo: _passwordController.text,
-        contrasena: '',
-        telefono: 'false',
-        direccion: 'false',
+        apellido: _lastNameController.text,
+        correo: _emailController.text,
+        contrasena: _passwordController.text,
+        telefono: _phoneController.text,
+        direccion: _addressController.text,
       );
 
       if (success && mounted) {
@@ -246,146 +246,156 @@ class _RegisterScreenState extends State<RegisterScreen> {
         title: const Text(_Strings.appBarTitle),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                _Strings.title,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _Strings.subtitle,
-                style: Theme.of(context).textTheme.bodyLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              FilledTextField(
-                controller: _nameController,
-                label: _Strings.nameLabel,
-                prefixIcon: Icons.person_outline,
-                enabled: !_isLoading,
-                focusNode: _nameFocus,
-                textInputAction: TextInputAction.next,
-                onSubmitted: () => _lastNameFocus.requestFocus(),
-                validator: _validateName,
-              ),
-              const SizedBox(height: 16),
-              FilledTextField(
-                controller: _lastNameController,
-                label: _Strings.lastNameLabel,
-                prefixIcon: Icons.person_outline,
-                enabled: !_isLoading,
-                focusNode: _lastNameFocus,
-                textInputAction: TextInputAction.next,
-                onSubmitted: () => _emailFocus.requestFocus(),
-                validator: _validateLastName,
-              ),
-              const SizedBox(height: 16),
-              FilledTextField(
-                controller: _emailController,
-                label: _Strings.emailLabel,
-                prefixIcon: Icons.email_outlined,
-                enabled: !_isLoading,
-                keyboardType: TextInputType.emailAddress,
-                focusNode: _emailFocus,
-                textInputAction: TextInputAction.next,
-                onSubmitted: () => _passwordFocus.requestFocus(),
-                validator: _validateEmail,
-              ),
-              const SizedBox(height: 16),
-              FilledTextField(
-                controller: _passwordController,
-                label: _Strings.passwordLabel,
-                prefixIcon: Icons.lock_outline,
-                obscureText: _obscurePassword,
-                enabled: !_isLoading,
-                focusNode: _passwordFocus,
-                textInputAction: TextInputAction.next,
-                onSubmitted: () => _phoneFocus.requestFocus(),
-                validator: _validatePassword,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                  ),
-                  onPressed: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
-                ),
-              ),
-              const SizedBox(height: 16),
-              FilledTextField(
-                controller: _phoneController,
-                label: _Strings.phoneLabel,
-                prefixIcon: Icons.phone_outlined,
-                enabled: !_isLoading,
-                keyboardType: TextInputType.phone,
-                focusNode: _phoneFocus,
-                textInputAction: TextInputAction.next,
-                onSubmitted: () => _addressFocus.requestFocus(),
-                validator: _validatePhone,
-              ),
-              const SizedBox(height: 16),
-              FilledTextField(
-                controller: _addressController,
-                label: _Strings.addressLabel,
-                prefixIcon: Icons.home_outlined,
-                enabled: !_isLoading,
-                focusNode: _addressFocus,
-                textInputAction: TextInputAction.done,
-                onSubmitted: () => _handleRegister(),
-                validator: _validateAddress,
-              ),
-              const SizedBox(height: 8),
-              CheckboxListTile(
-                value: _acceptTerms,
-                onChanged: _isLoading
-                    ? null
-                    : (value) => setState(() => _acceptTerms = value!),
-                title: Row(
-                  children: [
-                    const Text(_Strings.termsPrefix),
-                    GestureDetector(
-                      onTap: _isLoading ? null : _showTermsDialog,
-                      child: Text(
-                        _Strings.termsText,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          decoration: TextDecoration.underline,
+
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          _Strings.title,
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
                         ),
-                      ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _Strings.subtitle,
+                          style: Theme.of(context).textTheme.bodyLarge,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 32),
+                        FilledTextField(
+                          controller: _nameController,
+                          label: _Strings.nameLabel,
+                          prefixIcon: Icons.person_outline,
+                          enabled: !_isLoading,
+                          focusNode: _nameFocus,
+                          textInputAction: TextInputAction.next,
+                          onSubmitted: () => _lastNameFocus.requestFocus(),
+                          validator: _validateName,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledTextField(
+                          controller: _lastNameController,
+                          label: _Strings.lastNameLabel,
+                          prefixIcon: Icons.person_outline,
+                          enabled: !_isLoading,
+                          focusNode: _lastNameFocus,
+                          textInputAction: TextInputAction.next,
+                          onSubmitted: () => _emailFocus.requestFocus(),
+                          validator: _validateLastName,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledTextField(
+                          controller: _emailController,
+                          label: _Strings.emailLabel,
+                          prefixIcon: Icons.email_outlined,
+                          enabled: !_isLoading,
+                          keyboardType: TextInputType.emailAddress,
+                          focusNode: _emailFocus,
+                          textInputAction: TextInputAction.next,
+                          onSubmitted: () => _passwordFocus.requestFocus(),
+                          validator: _validateEmail,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledTextField(
+                          controller: _passwordController,
+                          label: _Strings.passwordLabel,
+                          prefixIcon: Icons.lock_outline,
+                          obscureText: _obscurePassword,
+                          enabled: !_isLoading,
+                          focusNode: _passwordFocus,
+                          textInputAction: TextInputAction.next,
+                          onSubmitted: () => _phoneFocus.requestFocus(),
+                          validator: _validatePassword,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                            ),
+                            onPressed: () =>
+                                setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        FilledTextField(
+                          controller: _phoneController,
+                          label: _Strings.phoneLabel,
+                          prefixIcon: Icons.phone_outlined,
+                          enabled: !_isLoading,
+                          keyboardType: TextInputType.phone,
+                          focusNode: _phoneFocus,
+                          textInputAction: TextInputAction.next,
+                          onSubmitted: () => _addressFocus.requestFocus(),
+                          validator: _validatePhone,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledTextField(
+                          controller: _addressController,
+                          label: _Strings.addressLabel,
+                          prefixIcon: Icons.home_outlined,
+                          enabled: !_isLoading,
+                          focusNode: _addressFocus,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: () => _handleRegister(),
+                          validator: _validateAddress,
+                        ),
+                        const SizedBox(height: 8),
+                        CheckboxListTile(
+                          value: _acceptTerms,
+                          onChanged: _isLoading
+                              ? null
+                              : (value) => setState(() => _acceptTerms = value!),
+                          title: Row(
+                            children: [
+                              const Text(_Strings.termsPrefix),
+                              GestureDetector(
+                                onTap: _isLoading ? null : _showTermsDialog,
+                                child: Text(
+                                  _Strings.termsText,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.primary,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed:
+                              (_acceptTerms && !_isLoading) ? _handleRegister : null,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Text(_Strings.createAccountButton),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
               ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed:
-                    (_acceptTerms && !_isLoading) ? _handleRegister : null,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text(_Strings.createAccountButton),
-              ),
-            ],
-          ),
-        ),
-      ),
+            );
+          },
+        )
     );
   }
 
