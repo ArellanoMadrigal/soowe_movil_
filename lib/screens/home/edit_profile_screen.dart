@@ -1,3 +1,4 @@
+import 'package:appdesarrollo/services/user_service.dart';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 
@@ -171,13 +172,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
  Future<void> _saveChanges() async {
    if (_formKey.currentState!.validate()) {
      try {
-       final success = await _apiService.editUser(
-         userId: '', // Aquí debes pasar el ID del usuario
-         name: _nameController.text,
-         userName: _emailController.text,
-         password: '', // Manejar la contraseña según necesites
-         foto: '', // Manejar la foto según necesites
-         verificado: 'true',
+       final success = await UserService().updateUser(
+         id: 'your_id',
+         nombre: _nameController.text,
+         apellido: 'your_last_name', // replace with actual last name
+         correo: _emailController.text,
+         contrasena: 'your_password', // replace with actual password
+         telefono: _phoneController.text,
+         direccion: _addressController.text,
        );
 
        if (success && mounted) {

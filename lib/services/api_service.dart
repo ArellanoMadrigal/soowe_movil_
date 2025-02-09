@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:logger/logger.dart'; // delete after repairing the methods placement
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -6,6 +7,7 @@ class ApiService {
 
   final Dio _dio;
   String? _authToken;
+  final Logger _logger = Logger(); 
 
   ApiService._internal()
       : _dio = Dio(
@@ -35,4 +37,26 @@ class ApiService {
     _authToken = null;
     _dio.options.headers.remove('Authorization');
   }
+
+  Future<List<Map<String, dynamic>>> fetchNotifications() async {
+   if (_authToken == null) {
+     throw Exception("No has iniciado sesión");
+   }
+
+   try {
+     final response = await _dio.get(
+       "/notifications",
+       options: Options(
+         headers: {
+           'Authorization': "Bearer $_authToken",
+         },
+       ),
+     );
+
+     return List<Map<String, dynamic>>.from(response.data['notifications']);
+   } on DioException catch (e) {
+     _logger.e("Error al obtener notificaciones: ${e.message}");
+     return [];
+   }
+ }
 }

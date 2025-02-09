@@ -1,3 +1,4 @@
+import 'package:appdesarrollo/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../transitions/search_page_transition.dart';
@@ -6,6 +7,7 @@ import 'requests_view.dart';
 import 'categories_screen.dart';
 import 'solicit_medical.dart';
 import 'list_service.dart';
+import '../../services/request_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,7 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _showNotifications = false;
-  List<Map<String, dynamic>> _requests = [];
+  List<Request> _requests = [];
   List<Map<String, dynamic>> _notifications = [];
   final ApiService _apiService = ApiService();
 
@@ -30,22 +32,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadData() async {
     try {
-      final allRequests = await _apiService.fetchAllRequests();
+      final allRequests = await RequestService().getAllRequests(
+        usuarioId: 0,
+        organizacionId: 0,
+      );
       final allNotifications = await _apiService.fetchNotifications();
 
       setState(() {
-        _requests = allRequests.where((r) => r['status'] == 'active').toList();
+        _requests = allRequests.where((r) => r.estado == 'activo').toList();
         _notifications = allNotifications.where((n) => !n['read']).toList();
       });
     } catch (e) {
-      debugPrint(e.toString());
+      debugPrint("Error loading data: $e");
     }
   }
 
-  void _toggleNotifications() => setState(() => _showNotifications = !_showNotifications);
+
+  void _toggleNotifications() =>
+      setState(() => _showNotifications = !_showNotifications);
   void _navigateToProfile() => setState(() => _selectedIndex = 2);
   void _logout() {
-    _apiService.logout();
+    AuthService().logout();
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
@@ -63,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onNotificationTap: _toggleNotifications,
                 apiService: _apiService,
               ),
-              RequestsView(requests: _requests),
+              RequestsView(requests: _requests.map((request) => request.toMap()).toList()),
               ProfileView(
                 onLogout: _logout,
               ),
@@ -80,7 +87,8 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         height: 65,
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+        onDestinationSelected: (index) =>
+            setState(() => _selectedIndex = index),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.medical_services_outlined),
@@ -189,7 +197,7 @@ class _ServicesViewState extends State<_ServicesView> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -209,8 +217,8 @@ class _ServicesViewState extends State<_ServicesView> {
                   Text(
                     'Alejandro Arellano',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                 ],
               ),
@@ -239,9 +247,9 @@ class _ServicesViewState extends State<_ServicesView> {
                   Text(
                     '¿Cómo podemos ayudarte?',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                    ),
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                        ),
                   ),
                   const SizedBox(height: 20),
                   Hero(
@@ -251,7 +259,8 @@ class _ServicesViewState extends State<_ServicesView> {
                       child: Container(
                         height: 56,
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                          color: colorScheme.surfaceContainerHighest
+                              .withOpacity(0.3),
                           borderRadius: BorderRadius.circular(28),
                           border: Border.all(
                             color: colorScheme.outline.withOpacity(0.1),
@@ -341,7 +350,7 @@ class _ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -377,10 +386,10 @@ class _ServiceCard extends StatelessWidget {
                 Text(
                   service.title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    height: 1.2,
-                    letterSpacing: -0.2,
-                  ),
+                        fontWeight: FontWeight.w600,
+                        height: 1.2,
+                        letterSpacing: -0.2,
+                      ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -388,10 +397,10 @@ class _ServiceCard extends StatelessWidget {
                 Text(
                   '${service.nurses} enfermeros',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                 ),
               ],
             ),
@@ -441,9 +450,10 @@ class _NotificationsOverlay extends StatelessWidget {
                       children: [
                         Text(
                           'Notificaciones',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                         ),
                         const Spacer(),
                         IconButton(
@@ -468,9 +478,10 @@ class _NotificationsOverlay extends StatelessWidget {
                           const SizedBox(height: 16),
                           Text(
                             'No tienes notificaciones',
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                            style:
+                                Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
                           ),
                         ],
                       ),
@@ -480,7 +491,8 @@ class _NotificationsOverlay extends StatelessWidget {
                       shrinkWrap: true,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       itemCount: notifications.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final notification = notifications[index];
                         return ListTile(
@@ -490,30 +502,45 @@ class _NotificationsOverlay extends StatelessWidget {
                           ),
                           leading: CircleAvatar(
                             backgroundColor: notification['read']
-                                ? Theme.of(context).colorScheme.surfaceContainerHighest
-                                : Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                ? Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withOpacity(0.1),
                             child: Icon(
                               Icons.notifications,
                               color: notification['read']
-                                  ? Theme.of(context).colorScheme.onSurfaceVariant
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant
                                   : Theme.of(context).colorScheme.primary,
                               size: 20,
                             ),
                           ),
                           title: Text(
                             notification['title'],
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
                           ),
                           subtitle: Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
                               notification['message'],
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                height: 1.3,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                    height: 1.3,
+                                  ),
                             ),
                           ),
                           onTap: () {
