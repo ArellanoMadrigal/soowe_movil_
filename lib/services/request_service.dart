@@ -1,10 +1,10 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 
 class RequestService {
   final ApiService _apiService = ApiService();
 
-  // Get all requests
   Future<List<Request>> getAllRequests({
     required int usuarioId,
     required int organizacionId,
@@ -16,18 +16,28 @@ class RequestService {
           'usuario_id': usuarioId,
           'organizacion_id': organizacionId,
         },
+        options: Options(
+          headers: {'Authorization': 'Bearer ${_apiService.getAuthToken()}'},
+        ),
       );
 
-      if (response.statusCode == 200) {
-        List<Request> requests = (response.data as List)
-            .map((data) => Request.fromJson(data))
-            .toList();
-        return requests;
-      } else {
-        throw Exception('Error al obtener las solicitudes');
+      debugPrint('Respuesta getAllRequests: ${response.data}');
+
+      if (response.statusCode == 200 && response.data != null) {
+        // Asegurarse de que response.data sea una lista
+        final List<dynamic> solicitudes = response.data is List 
+            ? response.data 
+            : response.data['solicitudes'] ?? [];
+            
+        return solicitudes.map((data) => Request.fromJson(data)).toList();
       }
+      throw Exception('Error al obtener las solicitudes');
     } on DioException catch (e) {
-      throw Exception('Error en la solicitud: ${e.message}');
+      debugPrint('Error en getAllRequests: ${e.response?.data}');
+      throw Exception(_apiService.handleError(e));
+    } catch (e) {
+      debugPrint('Error inesperado en getAllRequests: $e');
+      throw Exception('Error al obtener las solicitudes: $e');
     }
   }
 }
@@ -60,24 +70,31 @@ class Request {
   });
 
   factory Request.fromJson(Map<String, dynamic> json) {
-    return Request(
-      id: json['id'],
-      usuarioId: json['usuario_id'],
-      pacienteId: json['paciente_id'],
-      organizacionId: json['organizacion_id'],
-      enfermeroId: json['enfermero_id'],
-      estado: json['estado'],
-      metodoPago: json['metodo_pago'],
-      fechaSolicitud: DateTime.parse(json['fecha_solicitud']),
-      fechaServicio: json['fecha_servicio'] != null
-          ? DateTime.parse(json['fecha_servicio'])
-          : null,
-      solicitudId: json['solicitud_id'],
-      comentarios: json['comentarios'] ?? '',
-    );
+    try {
+      return Request(
+        id: json['id'] ?? 0,
+        usuarioId: json['usuario_id'] ?? 0,
+        pacienteId: json['paciente_id'] ?? 0,
+        organizacionId: json['organizacion_id'],
+        enfermeroId: json['enfermero_id'],
+        estado: json['estado'] ?? '',
+        metodoPago: json['metodo_pago'] ?? '',
+        fechaSolicitud: json['fecha_solicitud'] != null 
+            ? DateTime.parse(json['fecha_solicitud']) 
+            : DateTime.now(),
+        fechaServicio: json['fecha_servicio'] != null 
+            ? DateTime.parse(json['fecha_servicio'])
+            : null,
+        solicitudId: json['solicitud_id'] ?? 0,
+        comentarios: json['comentarios'] ?? '',
+      );
+    } catch (e) {
+      debugPrint('Error parseando Request: $e');
+      rethrow;
+    }
   }
 
-    Map<String, dynamic> toMap() {
+  Map<String, dynamic> toMap() {
     return {
       'id': id,
       'usuario_id': usuarioId,

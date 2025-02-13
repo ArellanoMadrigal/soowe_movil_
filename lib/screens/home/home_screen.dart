@@ -5,7 +5,6 @@ import '../../transitions/search_page_transition.dart';
 import 'profile_view.dart';
 import 'requests_view.dart';
 import 'categories_screen.dart';
-import 'solicit_medical.dart';
 import 'list_service.dart';
 import '../../services/request_service.dart';
 
@@ -23,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Request> _requests = [];
   List<Map<String, dynamic>> _notifications = [];
   final ApiService _apiService = ApiService();
+  String _userName = '';
 
   @override
   void initState() {
@@ -32,28 +32,68 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadData() async {
     try {
-      final allRequests = await RequestService().getAllRequests(
-        usuarioId: 0,
-        organizacionId: 0,
-      );
-      final allNotifications = await _apiService.fetchNotifications();
+      final userId = AuthService().getCurrentUserId();
+      if (userId == null) {
+        if (mounted) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+        }
+        return;
+      }
 
-      setState(() {
-        _requests = allRequests.where((r) => r.estado == 'activo').toList();
-        _notifications = allNotifications.where((n) => !n['read']).toList();
-      });
+      final userName = AuthService().getUserName();
+      if (userName != null && userName.isNotEmpty) {
+        setState(() {
+          _userName = userName;
+        });
+      } else {
+        try {
+          final userData = await _apiService.getUserProfile(userId);
+          if (mounted) {
+            setState(() {
+              _userName = '${userData['nombre']} ${userData['apellido']}'.trim();
+            });
+          }
+        } catch (e) {
+          debugPrint("Error obteniendo perfil: $e");
+        }
+      }
+
+      try {
+        final allRequests = await RequestService().getAllRequests(
+          usuarioId: int.tryParse(userId) ?? 0,
+          organizacionId: 0,
+        );
+        final allNotifications = await _apiService.fetchNotifications();
+
+        if (mounted) {
+          setState(() {
+            _requests = allRequests.where((r) => r.estado == 'activo').toList();
+            _notifications = allNotifications.where((n) => !n['read']).toList();
+          });
+        }
+      } catch (e) {
+        debugPrint("Error cargando datos: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al cargar datos: $e')),
+          );
+        }
+      }
     } catch (e) {
-      debugPrint("Error loading data: $e");
+      debugPrint("Error general: $e");
     }
   }
 
-
   void _toggleNotifications() =>
       setState(() => _showNotifications = !_showNotifications);
+      
   void _navigateToProfile() => setState(() => _selectedIndex = 2);
-  void _logout() {
-    AuthService().logout();
-    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+  
+  void _logout() async {
+    await AuthService().logout();
+    if (mounted) {
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+    }
   }
 
   @override
@@ -66,6 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
             index: _selectedIndex,
             children: [
               _ServicesView(
+                userName: _userName,
                 onProfileTap: _navigateToProfile,
                 onNotificationTap: _toggleNotifications,
                 apiService: _apiService,
@@ -87,8 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         height: 65,
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) =>
-            setState(() => _selectedIndex = index),
+        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.medical_services_outlined),
@@ -112,11 +152,13 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _ServicesView extends StatefulWidget {
+  final String userName;
   final VoidCallback onProfileTap;
   final VoidCallback onNotificationTap;
   final ApiService apiService;
 
   const _ServicesView({
+    required this.userName,
     required this.onProfileTap,
     required this.onNotificationTap,
     required this.apiService,
@@ -215,7 +257,7 @@ class _ServicesViewState extends State<_ServicesView> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    'Alejandro Arellano',
+                    widget.userName.isEmpty ? 'Usuario' : widget.userName,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -240,71 +282,47 @@ class _ServicesViewState extends State<_ServicesView> {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '¿Cómo podemos ayudarte?',
+                    '¿Qué servicio necesitas?',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface,
                         ),
                   ),
-                  const SizedBox(height: 20),
-                  Hero(
-                    tag: 'searchBar',
-                    child: Material(
-                      color: Colors.transparent,
-                      child: Container(
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest
-                              .withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(
-                            color: colorScheme.outline.withOpacity(0.1),
-                          ),
-                        ),
-                        child: InkWell(
-                          onTap: _navigateToCategories,
-                          borderRadius: BorderRadius.circular(28),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.search,
-                                  size: 22,
-                                  color: colorScheme.primary,
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'Busca en más de 20 servicios',
-                                  style: TextStyle(
-                                    color: colorScheme.onSurfaceVariant,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _searchController,
+                    onTap: _navigateToCategories,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar servicios',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Servicios populares',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                 ],
               ),
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.all(16),
             sliver: SliverGrid(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 1.1,
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
-                childAspectRatio: 0.85,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) => _ServiceCard(
@@ -314,9 +332,6 @@ class _ServicesViewState extends State<_ServicesView> {
                 childCount: services.length,
               ),
             ),
-          ),
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 24),
           ),
         ],
       ),
@@ -350,60 +365,52 @@ class _ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
+    
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: colorScheme.outline.withOpacity(0.1),
+          color: colorScheme.outline.withOpacity(0.12),
         ),
       ),
-      child: Material(
-        color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    service.icon,
-                    size: 28,
-                    color: colorScheme.primary,
-                  ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const Spacer(),
-                Text(
-                  service.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        height: 1.2,
-                        letterSpacing: -0.2,
-                      ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                child: Icon(
+                  service.icon,
+                  color: colorScheme.primary,
+                  size: 24,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '${service.nurses} enfermeros',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-              ],
-            ),
+              ),
+              const Spacer(),
+              Text(
+                service.title,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${service.nurses} enfermeros',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.outline,
+                    ),
+              ),
+            ],
           ),
         ),
       ),
@@ -422,137 +429,80 @@ class _NotificationsOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return GestureDetector(
       onTap: onDismiss,
-      child: Container(
+      behavior: HitTestBehavior.opaque,
+      child: Material(
         color: Colors.black54,
-        child: Align(
-          alignment: Alignment.topRight,
-          child: Container(
-            width: MediaQuery.of(context).size.width * 0.9,
-            margin: EdgeInsets.only(
+        child: Stack(
+          children: [
+            Positioned(
               top: MediaQuery.of(context).padding.top + kToolbarHeight,
               right: 8,
-            ),
-            child: Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Notificaciones',
-                          style:
-                              Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
+              child: Card(
+                elevation: 8,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.9,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Notificaciones',
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: onDismiss,
+                            ),
+                          ],
                         ),
-                        const Spacer(),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: onDismiss,
-                          tooltip: 'Cerrar notificaciones',
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  if (notifications.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.notifications_off_outlined,
-                            size: 48,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No tienes notificaciones',
-                            style:
-                                Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                          ),
-                        ],
                       ),
-                    )
-                  else
-                    ListView.separated(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      itemCount: notifications.length,
-                      separatorBuilder: (context, index) =>
-                          const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final notification = notifications[index];
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          leading: CircleAvatar(
-                            backgroundColor: notification['read']
-                                ? Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest
-                                : Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withOpacity(0.1),
-                            child: Icon(
-                              Icons.notifications,
-                              color: notification['read']
-                                  ? Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant
-                                  : Theme.of(context).colorScheme.primary,
-                              size: 20,
-                            ),
-                          ),
-                          title: Text(
-                            notification['title'],
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w600,
+                      const Divider(height: 1),
+                      if (notifications.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text('No hay notificaciones nuevas'),
+                        )
+                      else
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const ClampingScrollPhysics(),
+                          itemCount: notifications.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final notification = notifications[index];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                child: Icon(
+                                  Icons.notifications_none,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
-                          ),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              notification['message'],
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                    height: 1.3,
-                                  ),
-                            ),
-                          ),
-                          onTap: () {
-                            // Marcar notificación como leída
+                              ),
+                              title: Text(notification['title'] ?? ''),
+                              subtitle: Text(notification['message'] ?? ''),
+                              trailing: Text(
+                                notification['time'] ?? '',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            );
                           },
-                        );
-                      },
-                    ),
-                ],
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
