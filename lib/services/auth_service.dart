@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
 import 'api_service.dart';
 
 class AuthService {
@@ -11,16 +12,22 @@ class AuthService {
   SharedPreferences? _prefs;
   String? _currentUserId;
   String? _userName;
+  String? _userRole;
+  bool _isInitialized = false;
 
   AuthService._internal() {
     _initPrefs();
   }
 
   Future<void> _initPrefs() async {
+    if (_isInitialized) return;
+    
     try {
       _prefs = await SharedPreferences.getInstance();
       _currentUserId = _prefs?.getString('userId');
       _userName = _prefs?.getString('userName');
+      _userRole = _prefs?.getString('userRole');
+      _isInitialized = true;
     } catch (e) {
       debugPrint('Error inicializando SharedPreferences: $e');
     }
@@ -32,11 +39,10 @@ class AuthService {
     required String correo,
     required String contrasena,
     required String confirmarContrasena,
-    String telefono = 'pendiente',    // Valor predeterminado significativo
-    String direccion = 'pendiente',   // Valor predeterminado significativo
+    String telefono = '',
+    String direccion = '',
   }) async {
     try {
-      // Validar que la contraseña y la confirmación coincidan
       if (contrasena != confirmarContrasena) {
         throw Exception('Las contraseñas no coinciden');
       }
@@ -49,7 +55,7 @@ class AuthService {
           'correo': correo,
           'contrasena': contrasena,
           'telefono': telefono,
-          'direccion': direccion
+          'direccion': direccion,
         },
       );
 
@@ -69,11 +75,8 @@ class AuthService {
     required String contrasena,
   }) async {
     try {
-      if (_prefs == null) {
-        await _initPrefs();
-      }
+      await _initPrefs();
 
-      debugPrint('Intentando login con: $correo');
       final response = await _apiService.dio.post(
         'loginMobile',
         data: {
@@ -85,18 +88,55 @@ class AuthService {
       debugPrint('Respuesta login: ${response.data}');
 
       if (response.statusCode == 200 && response.data != null) {
-        final token = response.data['token'];
-        if (token == null) {
-          throw Exception('Token no recibido');
+        final token = response.data['token'] as String?;
+        final role = response.data['role'] as String?;
+
+        if (token == null || role == null) {
+          throw Exception('Token o rol no recibido');
         }
 
-        _currentUserId = response.data['_id'];
-        _userName = '${response.data['nombre']} ${response.data['apellido']}'.trim();
+        // Decodificar el token para obtener el ID
+        final parts = token.split('.');
+        if (parts.length != 3) throw Exception('Token inválido');
 
-        await _prefs?.setString('userId', _currentUserId ?? '');
-        await _prefs?.setString('userName', _userName ?? '');
+        String payload = parts[1];
+        while (payload.length % 4 != 0) payload += '=';
+        
+        final normalized = base64Url.normalize(payload);
+        final decoded = utf8.decode(base64Url.decode(normalized));
+        final Map<String, dynamic> tokenData = json.decode(decoded);
+
+        final userId = tokenData['id'] as String?;
+        final userEmail = tokenData['correo'] as String?;
+        if (userId == null) throw Exception('ID no encontrado en el token');
+
+        // Establecer token para autorización
         _apiService.setAuthToken(token);
 
+        // Intentar obtener datos del perfil, pero no fallar si no se puede
+        String userName = 'Usuario';
+        try {
+          final userData = await _apiService.getUserProfile(userId);
+          userName = '${userData['nombre']} ${userData['apellido']}'.trim();
+        } catch (e) {
+          debugPrint("No se pudo obtener el perfil completo: $e");
+          // Usar el correo como nombre de usuario alternativo
+          userName = userEmail ?? 'Usuario';
+        }
+
+        // Guardar todos los datos
+        _currentUserId = userId;
+        _userRole = role;
+        _userName = userName;
+
+        // Guardar en SharedPreferences
+        await Future.wait([
+          _prefs?.setString('userId', userId) ?? Future.value(),
+          _prefs?.setString('userRole', role) ?? Future.value(),
+          _prefs?.setString('userName', userName) ?? Future.value(),
+        ]);
+
+        debugPrint('Login exitoso. Usuario: $userName, Rol: $role');
         return true;
       }
       return false;
@@ -109,128 +149,65 @@ class AuthService {
     }
   }
 
-  // Método para actualizar el perfil del usuario
+  Future<void> loadUserProfile() async {
+    try {
+      final userId = _currentUserId;
+      if (userId == null) throw Exception('Usuario no autenticado');
+
+      try {
+        final userData = await _apiService.getUserProfile(userId);
+        
+        _userName = userData['nombre'] != null && userData['apellido'] != null
+            ? '${userData['nombre']} ${userData['apellido']}'.trim()
+            : (userData['correo'] ?? 'Usuario');
+        
+        await _prefs?.setString('userName', _userName ?? '');
+      } catch (e) {
+        debugPrint('Error cargando perfil: $e');
+        // Mantener el nombre de usuario existente o usar un valor predeterminado
+        _userName ??= 'Usuario';
+      }
+    } catch (e) {
+      debugPrint('Error en loadUserProfile: $e');
+      _userName ??= 'Usuario';
+    }
+  }
+
   Future<bool> updateUserProfile({
     String? telefono,
     String? direccion,
   }) async {
     try {
-      final userId = getCurrentUserId();
-      if (userId == null) {
-        throw Exception('Usuario no autenticado');
+      final userId = _currentUserId;
+      if (userId == null) throw Exception('Usuario no autenticado');
+
+      final data = <String, dynamic>{};
+      if (telefono != null) data['telefono'] = telefono;
+      if (direccion != null) data['direccion'] = direccion;
+
+      final success = await _apiService.updateUserProfile(userId, data);
+      if (success) {
+        await loadUserProfile();
       }
-
-      final response = await _apiService.dio.put(
-        'updateProfile/$userId',
-        data: {
-          if (telefono != null) 'telefono': telefono,
-          if (direccion != null) 'direccion': direccion,
-        },
-      );
-
-      debugPrint('Respuesta actualización perfil: ${response.data}');
-      return response.statusCode == 200;
-    } on DioException catch (e) {
-      debugPrint('Error en actualización de perfil: ${e.response?.data}');
-      throw Exception(_apiService.handleError(e));
+      return success;
     } catch (e) {
-      debugPrint('Error general en actualización de perfil: $e');
-      throw Exception('Error inesperado al actualizar perfil');
+      debugPrint('Error en actualización de perfil: $e');
+      throw Exception('Error al actualizar perfil');
     }
   }
 
-  String? getCurrentUserId() {
-    try {
-      _currentUserId ??= _prefs?.getString('userId');
-      return _currentUserId;
-    } catch (e) {
-      debugPrint('Error al obtener userId: $e');
-      return null;
-    }
-  }
-
-  String? getUserName() {
-    try {
-      _userName ??= _prefs?.getString('userName');
-      return _userName;
-    } catch (e) {
-      debugPrint('Error al obtener userName: $e');
-      return null;
-    }
-  }
-
-  Future<void> logout() async {
-    try {
-      if (_prefs == null) {
-        await _initPrefs();
-      }
-      await _prefs?.clear(); // Limpia todas las preferencias
-      _currentUserId = null;
-      _userName = null;
-      _apiService.clearAuthToken();
-    } catch (e) {
-      debugPrint('Error en logout: $e');
-      throw Exception('Error al cerrar sesión');
-    }
-  }
-
-  bool isLoggedIn() {
-    final hasUserId = _currentUserId != null;
-    final hasToken = _apiService.getAuthToken() != null;
-    return hasUserId && hasToken;
-  }
-
-  Future<void> checkAuthStatus() async {
-    try {
-      if (_prefs == null) {
-        await _initPrefs();
-      }
-      _currentUserId = _prefs?.getString('userId');
-      _userName = _prefs?.getString('userName');
-    } catch (e) {
-      debugPrint('Error checking auth status: $e');
-      throw Exception('Error al verificar estado de autenticación');
-    }
-  }
-
-  // Método para obtener el perfil del usuario
-  Future<Map<String, dynamic>> getUserProfile() async {
-    try {
-      final userId = getCurrentUserId();
-      if (userId == null) {
-        throw Exception('Usuario no autenticado');
-      }
-
-      final response = await _apiService.dio.get('profile/$userId');
-
-      if (response.statusCode == 200 && response.data != null) {
-        return response.data;
-      }
-      throw Exception('Error al obtener perfil de usuario');
-    } on DioException catch (e) {
-      debugPrint('Error al obtener perfil: ${e.response?.data}');
-      throw Exception(_apiService.handleError(e));
-    } catch (e) {
-      debugPrint('Error general al obtener perfil: $e');
-      throw Exception('Error inesperado al obtener perfil');
-    }
-  }
-
-  // Método para cambiar la contraseña
   Future<bool> changePassword({
     required String currentPassword,
     required String newPassword,
-    required String confirmNewPassword,
+    required String confirmPassword,
   }) async {
     try {
-      final userId = getCurrentUserId();
-      if (userId == null) {
-        throw Exception('Usuario no autenticado');
+      if (newPassword != confirmPassword) {
+        throw Exception('Las nuevas contraseñas no coinciden');
       }
 
-      if (newPassword != confirmNewPassword) {
-        throw Exception('Las contraseñas nuevas no coinciden');
-      }
+      final userId = _currentUserId;
+      if (userId == null) throw Exception('Usuario no autenticado');
 
       final response = await _apiService.dio.put(
         'changePassword/$userId',
@@ -240,90 +217,85 @@ class AuthService {
         },
       );
 
-      debugPrint('Respuesta cambio contraseña: ${response.data}');
       return response.statusCode == 200;
     } on DioException catch (e) {
-      debugPrint('Error en cambio de contraseña: ${e.response?.data}');
       throw Exception(_apiService.handleError(e));
     } catch (e) {
-      debugPrint('Error general en cambio de contraseña: $e');
       throw Exception('Error inesperado al cambiar contraseña');
     }
   }
 
-  // Método para solicitar restablecimiento de contraseña
-  Future<bool> requestPasswordReset({
-    required String email,
-  }) async {
+  Future<bool> requestPasswordReset(String email) async {
     try {
       final response = await _apiService.dio.post(
         'requestPasswordReset',
-        data: {
-          'correo': email,
-        },
+        data: {'correo': email},
       );
-
-      debugPrint('Respuesta solicitud reset contraseña: ${response.data}');
       return response.statusCode == 200;
-    } on DioException catch (e) {
-      debugPrint('Error en solicitud reset contraseña: ${e.response?.data}');
-      throw Exception(_apiService.handleError(e));
     } catch (e) {
-      debugPrint('Error general en solicitud reset contraseña: $e');
-      throw Exception('Error inesperado al solicitar reset de contraseña');
+      throw Exception('Error al solicitar reset de contraseña');
     }
   }
 
-  // Método para verificar token de restablecimiento de contraseña
-  Future<bool> verifyResetToken({
-    required String token,
-  }) async {
-    try {
-      final response = await _apiService.dio.post(
-        'verifyResetToken',
-        data: {
-          'token': token,
-        },
-      );
+  String? getCurrentUserId() => _currentUserId;
+  String? getUserName() => _userName;
+  String? getUserRole() => _userRole;
 
-      debugPrint('Respuesta verificación token: ${response.data}');
-      return response.statusCode == 200;
-    } on DioException catch (e) {
-      debugPrint('Error en verificación token: ${e.response?.data}');
-      throw Exception(_apiService.handleError(e));
+  Future<void> logout() async {
+    try {
+      await _initPrefs();
+      await _prefs?.clear();
+      _currentUserId = null;
+      _userName = null;
+      _userRole = null;
+      _apiService.clearAuthToken();
     } catch (e) {
-      debugPrint('Error general en verificación token: $e');
-      throw Exception('Error inesperado al verificar token');
+      debugPrint('Error en logout: $e');
+      throw Exception('Error al cerrar sesión');
     }
   }
 
-  // Método para actualizar contraseña con token de reset
-  Future<bool> resetPassword({
-    required String token,
-    required String newPassword,
-    required String confirmPassword,
-  }) async {
+  bool isLoggedIn() {
+    return _currentUserId != null && _apiService.getAuthToken() != null;
+  }
+
+  Future<void> checkAuthStatus() async {
     try {
-      if (newPassword != confirmPassword) {
-        throw Exception('Las contraseñas no coinciden');
+      await _initPrefs();
+      
+      // Si no hay userId, no hay sesión activa
+      if (_currentUserId == null) return;
+
+      try {
+        await loadUserProfile();
+      } catch (e) {
+        debugPrint('Error verificando sesión: $e');
+        await logout();
       }
-
-      final response = await _apiService.dio.post(
-        'resetPassword',
-        data: {
-          'token': token,
-          'newPassword': newPassword,
-        },
-      );
-
-      debugPrint('Respuesta reset contraseña: ${response.data}');
-      return response.statusCode == 200;
-    } on DioException catch (e) {
-      debugPrint('Error en reset contraseña: ${e.response?.data}');
-      throw Exception(_apiService.handleError(e));
     } catch (e) {
-      debugPrint('Error general en reset contraseña: $e');
-      throw Exception('Error inesperado al resetear contraseña');
+      debugPrint('Error checking auth status: $e');
+      throw Exception('Error al verificar estado de autenticación');
+    }
+  }
+
+  Future<Map<String, dynamic>> getUserProfile() async {
+    try {
+      final userId = _currentUserId;
+      if (userId == null) throw Exception('Usuario no autenticado');
+
+      final userData = await _apiService.getUserProfile(userId);
+      
+      // Usar datos del perfil o valores predeterminados
+      _userName = userData['nombre'] != null && userData['apellido'] != null
+          ? '${userData['nombre']} ${userData['apellido']}'.trim()
+          : (userData['correo'] ?? 'Usuario');
+      
+      await _prefs?.setString('userName', _userName ?? '');
+      
+      return userData;
+    } catch (e) {
+      debugPrint('Error obteniendo perfil: $e');
+      throw Exception('Error al obtener perfil de usuario');
     }
   }
 }

@@ -1,5 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'requests_view.dart';
+
+class Service {
+  final String id;
+  final String title;
+  final String description;
+  final double price;
+
+  Service({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.price,
+  });
+}
+
+class ServiceCategory {
+  final String id;
+  final String title;
+  final List<Service> services;
+
+  ServiceCategory({
+    required this.id,
+    required this.title,
+    required this.services,
+  });
+}
 
 class SolicitMedicalScreen extends StatefulWidget {
   const SolicitMedicalScreen({super.key});
@@ -10,6 +37,8 @@ class SolicitMedicalScreen extends StatefulWidget {
 
 class _SolicitMedicalScreenState extends State<SolicitMedicalScreen> {
   final PageController _pageController = PageController();
+  final GlobalKey<_PaymentStepState> _paymentStepKey =
+      GlobalKey<_PaymentStepState>();
   int currentStep = 0;
 
   // Date selection
@@ -24,7 +53,14 @@ class _SolicitMedicalScreenState extends State<SolicitMedicalScreen> {
   final _phoneController = TextEditingController();
   final _conditionController = TextEditingController();
 
+  // Location information
+  final _addressController = TextEditingController();
+
   void _nextPage() {
+    if (currentStep == 1 && !_formKey.currentState!.validate()) {
+      return;
+    }
+
     if (currentStep < 3) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
@@ -46,56 +82,143 @@ class _SolicitMedicalScreenState extends State<SolicitMedicalScreen> {
     }
   }
 
+  void _submitRequest() {
+    final paymentState = _paymentStepKey.currentState;
+
+    if (paymentState != null &&
+        paymentState._selectedPaymentMethod == PaymentMethod.card &&
+        !paymentState._formKey.currentState!.validate()) {
+      return;
+    }
+
+    // Crear el objeto de solicitud
+    final request = {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(), // ID único
+      'service': {
+        'id': '1',
+        'title': 'Sutura de heridas',
+        'price': 400.00,
+      },
+      'date': DateFormat('yyyy-MM-dd').format(selectedDate),
+      'time': selectedTime.format(context),
+      'patient': {
+        'name': _nameController.text,
+        'age': int.parse(_ageController.text),
+        'phone': _phoneController.text,
+        'condition': _conditionController.text,
+      },
+      'location': {
+        'address': _addressController.text,
+      },
+      'payment': {
+        'method':
+            paymentState?._selectedPaymentMethod.toString().split('.').last ??
+                'cash',
+        'card_info': paymentState?._selectedPaymentMethod == PaymentMethod.card
+            ? {
+                'number': paymentState?._cardNumberController?.text ?? '',
+                'holder': paymentState?._cardHolderController?.text ?? '',
+                'expiry': paymentState?._expiryController?.text ?? '',
+                'cvv': paymentState?._cvvController?.text ?? '',
+              }
+            : null,
+      },
+      'status': 'active', // Cambiado de 'pending' a 'active'
+      'created_at': DateTime.now().toIso8601String(),
+    };
+
+    // Mostrar diálogo de confirmación
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Solicitud Enviada'),
+        content: const Text('Tu solicitud ha sido procesada exitosamente.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Cierra el diálogo
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => RequestsView(requests: [request]),
+                ),
+              );
+            },
+            child: const Text('Aceptar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: _previousPage,
-        ),
-        title: Text(
-          'Nueva Solicitud',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Colors.black87,
-                fontWeight: FontWeight.w500,
-              ),
-        ),
-      ),
-      body: Column(
-        children: [
-          _StepIndicator(currentStep: currentStep),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _DateStep(
-                  selectedTimeOption: _selectedTimeOption,
-                  selectedDate: selectedDate,
-                  selectedTime: selectedTime,
-                  onTimeOptionChanged: (value) =>
-                      setState(() => _selectedTimeOption = value),
-                  onDateChanged: (date) => setState(() => selectedDate = date),
-                  onTimeChanged: (time) => setState(() => selectedTime = time),
-                ),
-                _PatientStep(
-                  formKey: _formKey,
-                  nameController: _nameController,
-                  ageController: _ageController,
-                  phoneController: _phoneController,
-                  conditionController: _conditionController,
-                ),
-                const _LocationStep(),
-                const _PaymentStep(),
-              ],
-            ),
+    return WillPopScope(
+      onWillPop: () async {
+        if (currentStep > 0) {
+          _previousPage();
+          return false;
+        }
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.grey[50],
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black87),
+            onPressed: _previousPage,
           ),
-          _buildBottomNavigation(),
-        ],
+          title: Text(
+            'Nueva Solicitud',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+        ),
+        body: Column(
+          children: [
+            _StepIndicator(currentStep: currentStep),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _DateStep(
+                    selectedTimeOption: _selectedTimeOption,
+                    selectedDate: selectedDate,
+                    selectedTime: selectedTime,
+                    onTimeOptionChanged: (value) =>
+                        setState(() => _selectedTimeOption = value),
+                    onDateChanged: (date) =>
+                        setState(() => selectedDate = date),
+                    onTimeChanged: (time) =>
+                        setState(() => selectedTime = time),
+                  ),
+                  _PatientStep(
+                    formKey: _formKey,
+                    nameController: _nameController,
+                    ageController: _ageController,
+                    phoneController: _phoneController,
+                    conditionController: _conditionController,
+                  ),
+                  _LocationStep(
+                    addressController: _addressController,
+                  ),
+                  _PaymentStep(
+                    key: _paymentStepKey,
+                    selectedDate: selectedDate,
+                    selectedTime: selectedTime,
+                  ),
+                ],
+              ),
+            ),
+            _buildBottomNavigation(),
+          ],
+        ),
       ),
     );
   }
@@ -152,26 +275,6 @@ class _SolicitMedicalScreenState extends State<SolicitMedicalScreen> {
     );
   }
 
-  void _submitRequest() {
-    // Aquí iría la lógica para enviar la solicitud
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Solicitud Enviada'),
-        content: const Text('Tu solicitud ha sido procesada exitosamente.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Cierra el diálogo
-              Navigator.of(context).pop(); // Vuelve a la pantalla anterior
-            },
-            child: const Text('Aceptar'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _pageController.dispose();
@@ -179,6 +282,7 @@ class _SolicitMedicalScreenState extends State<SolicitMedicalScreen> {
     _ageController.dispose();
     _phoneController.dispose();
     _conditionController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 }
@@ -377,7 +481,6 @@ class _DateStep extends StatelessWidget {
           initialDate: selectedDate,
           firstDate: DateTime.now(),
           lastDate: DateTime.now().add(const Duration(days: 365)),
-          locale: const Locale('es', ''), // Se especifica el locale en español
         );
         if (picked != null) onDateChanged(picked);
       },
@@ -524,7 +627,11 @@ class _PatientStep extends StatelessWidget {
 }
 
 class _LocationStep extends StatelessWidget {
-  const _LocationStep();
+  final TextEditingController addressController;
+
+  const _LocationStep({
+    required this.addressController,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -576,6 +683,7 @@ class _LocationStep extends StatelessWidget {
               border: Border.all(color: Colors.grey[300]!),
             ),
             child: TextFormField(
+              controller: addressController,
               decoration: InputDecoration(
                 labelText: 'Dirección completa',
                 prefixIcon:
@@ -597,8 +705,38 @@ class _LocationStep extends StatelessWidget {
   }
 }
 
-class _PaymentStep extends StatelessWidget {
-  const _PaymentStep();
+class _PaymentStep extends StatefulWidget {
+  final DateTime selectedDate;
+  final TimeOfDay selectedTime;
+
+  const _PaymentStep({
+    Key? key,
+    required this.selectedDate,
+    required this.selectedTime,
+  }) : super(key: key);
+
+  @override
+  State<_PaymentStep> createState() => _PaymentStepState();
+}
+
+class _PaymentStepState extends State<_PaymentStep> {
+  PaymentMethod _selectedPaymentMethod = PaymentMethod.cash;
+  final _formKey = GlobalKey<FormState>();
+
+  // Controladores para el formulario de tarjeta
+  final _cardNumberController = TextEditingController();
+  final _cardHolderController = TextEditingController();
+  final _expiryController = TextEditingController();
+  final _cvvController = TextEditingController();
+
+  @override
+  void dispose() {
+    _cardNumberController.dispose();
+    _cardHolderController.dispose();
+    _expiryController.dispose();
+    _cvvController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -620,45 +758,103 @@ class _PaymentStep extends StatelessWidget {
             icon: Icons.credit_card,
             title: 'Tarjeta de Crédito/Débito',
             subtitle: 'Pago seguro con tarjeta',
-            isSelected: true,
+            isSelected: _selectedPaymentMethod == PaymentMethod.card,
+            onTap: () =>
+                setState(() => _selectedPaymentMethod = PaymentMethod.card),
           ),
           const SizedBox(height: 16),
           _buildPaymentOption(
             icon: Icons.payments,
             title: 'Efectivo',
             subtitle: 'Pago en efectivo al personal de enfermería',
-            isSelected: false,
+            isSelected: _selectedPaymentMethod == PaymentMethod.cash,
+            onTap: () =>
+                setState(() => _selectedPaymentMethod = PaymentMethod.cash),
           ),
+          if (_selectedPaymentMethod == PaymentMethod.card) ...[
+            const SizedBox(height: 24),
+            _buildCardForm(),
+          ],
           const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.withOpacity(0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Resumen del Servicio',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
+          _buildServiceSummary(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardForm() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          _buildTextField(
+            controller: _cardNumberController,
+            label: 'Número de Tarjeta',
+            icon: Icons.credit_card,
+            keyboardType: TextInputType.number,
+            validator: (value) =>
+                value?.isEmpty ?? true ? 'Ingrese el número de tarjeta' : null,
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _cardHolderController,
+            label: 'Nombre del Titular',
+            icon: Icons.person,
+            validator: (value) =>
+                value?.isEmpty ?? true ? 'Ingrese el nombre del titular' : null,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  controller: _expiryController,
+                  label: 'MM/AA',
+                  icon: Icons.calendar_today,
+                  keyboardType: TextInputType.number,
+                  validator: (value) =>
+                      value?.isEmpty ?? true ? 'Ingrese la fecha' : null,
                 ),
-                const SizedBox(height: 16),
-                _buildSummaryRow('Servicio:', 'Cuidados Básicos'),
-                _buildSummaryRow('Fecha:', '29/01/2025'),
-                _buildSummaryRow('Hora:', '7:19 PM'),
-                const Divider(),
-                _buildSummaryRow('Total:', '\$500.00', isBold: true),
-              ],
-            ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildTextField(
+                  controller: _cvvController,
+                  label: 'CVV',
+                  icon: Icons.lock,
+                  keyboardType: TextInputType.number,
+                  obscureText: true,
+                  validator: (value) =>
+                      value?.isEmpty ?? true ? 'Ingrese el CVV' : null,
+                ),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    bool obscureText = false,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+      keyboardType: keyboardType,
+      obscureText: obscureText,
+      validator: validator,
     );
   }
 
@@ -667,36 +863,83 @@ class _PaymentStep extends StatelessWidget {
     required String title,
     required String subtitle,
     required bool isSelected,
+    required VoidCallback onTap,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isSelected ? Colors.blue : Colors.grey[300]!,
-          width: isSelected ? 2 : 1,
-        ),
-      ),
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: isSelected ? Colors.blue : Colors.grey[600],
-          size: 24,
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? Colors.blue : Colors.grey[300]!,
+            width: isSelected ? 2 : 1,
           ),
         ),
-        subtitle: Text(subtitle),
-        trailing: Icon(
-          isSelected
-              ? Icons.radio_button_checked
-              : Icons.radio_button_unchecked,
-          color: isSelected ? Colors.blue : Colors.grey[400],
-          size: 20,
+        child: ListTile(
+          leading: Icon(
+            icon,
+            color: isSelected ? Colors.blue : Colors.grey[600],
+            size: 24,
+          ),
+          title: Text(
+            title,
+            style: TextStyle(
+              fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+            ),
+          ),
+          subtitle: Text(subtitle),
+          trailing: Icon(
+            isSelected
+                ? Icons.radio_button_checked
+                : Icons.radio_button_unchecked,
+            color: isSelected ? Colors.blue : Colors.grey[400],
+            size: 20,
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildServiceSummary() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Resumen del Servicio',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildSummaryRow('Servicio:', 'Sutura de heridas'),
+          _buildSummaryRow(
+            'Fecha:',
+            DateFormat('dd/MM/yyyy').format(widget.selectedDate),
+          ),
+          _buildSummaryRow(
+            'Hora:',
+            widget.selectedTime.format(context),
+          ),
+          const Divider(),
+          _buildSummaryRow(
+            'Total:',
+            NumberFormat.currency(
+              symbol: '\$',
+              decimalDigits: 2,
+            ).format(400.00),
+            isBold: true,
+          ),
+        ],
       ),
     );
   }
@@ -725,3 +968,5 @@ class _PaymentStep extends StatelessWidget {
     );
   }
 }
+
+enum PaymentMethod { card, cash }

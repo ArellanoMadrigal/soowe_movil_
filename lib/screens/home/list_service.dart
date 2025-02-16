@@ -55,79 +55,86 @@ class _ListServiceScreenState extends State<ListServiceScreen> {
     _loadServices();
   }
 
-  Future<void> _loadServices() async {
-    try {
-      // Simular carga de datos de la API
-      await Future.delayed(const Duration(seconds: 1));
-      setState(() {
-        _categories = [
-          ServiceCategory(
-            id: '1',
-            title: 'Servicios básicos',
-            services: [
-              Service(
-                id: '1',
-                title: 'Cuidados básicos del adulto mayor',
-                description: 'Atención especializada para adultos mayores que requieren asistencia en sus actividades diarias.',
-                price: 350.00,
-              ),
-              Service(
-                id: '2',
-                title: 'Asistencia en la medicación',
-                description: 'Ayuda con la administración de medicamentos según prescripción médica.',
-                price: 250.00,
-                
-              ),
-            ],
-          ),
-          ServiceCategory(
-            id: '2',
-            title: 'Servicios especializados',
-            services: [
-              Service(
-                id: '3',
-                title: 'Terapia física',
-                description: 'Sesiones de terapia física personalizada a domicilio.',
-                price: 450.00,
-                
-              ),
-              Service(
-                id: '4',
-                title: 'Rehabilitación post operatoria',
-                description: 'Programa de rehabilitación especializado después de cirugías.',
-                price: 500.00,
-                
-              ),
-            ],
-          ),
-          ServiceCategory(
-            id: '3',
-            title: 'Servicios de emergencia',
-            services: [
-              Service(
-                id: '5',
-                title: 'Atención de urgencias',
-                description: 'Servicio de atención inmediata para situaciones urgentes.',
-                price: 600.00,
-                
-              ),
-              Service(
-                id: '6',
-                title: 'Monitoreo 24/7',
-                description: 'Supervisión continua del paciente durante todo el día.',
-                price: 800.00,
-                
-              ),
-            ],
-          ),
-        ];
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      _showErrorDialog();
-    }
+Future<void> _loadServices() async {
+  try {
+    // Simular carga de datos de la API
+    await Future.delayed(const Duration(seconds: 1));
+    setState(() {
+      _categories = [
+        ServiceCategory(
+          id: '1',
+          title: 'Servicios de Sutura',
+          services: [
+            Service(
+              id: '1',
+              title: 'Sutura de heridas',
+              description: 'Sutura profesional de heridas para una cicatrización adecuada.',
+              price: 400.00,
+            ),
+            Service(
+              id: '2',
+              title: 'Retiro de Suturas',
+              description: 'Retiro seguro y profesional de suturas después de la cicatrización.',
+              price: 200.00,
+            ),
+            Service(
+              id: '3',
+              title: 'Sutura de Laceraciones Profundas',
+              description: 'Tratamiento especializado para heridas profundas que requieren múltiples capas de sutura.',
+              price: 600.00,
+            ),
+            Service(
+              id: '4',
+              title: 'Sutura Estética',
+              description: 'Técnica especial de sutura para minimizar cicatrices en zonas visibles.',
+              price: 800.00,
+            ),
+            Service(
+              id: '5',
+              title: 'Sutura de Emergencia',
+              description: 'Servicio urgente de sutura disponible 24/7 para casos que requieren atención inmediata.',
+              price: 750.00,
+            ),
+            Service(
+              id: '6',
+              title: 'Revisión y Seguimiento de Suturas',
+              description: 'Evaluación del proceso de cicatrización y estado de las suturas con recomendaciones de cuidado.',
+              price: 150.00,
+            ),
+            Service(
+              id: '7',
+              title: 'Sutura Pediátrica',
+              description: 'Servicio especializado de suturas para niños con técnicas y materiales adaptados.',
+              price: 500.00,
+            ),
+            Service(
+              id: '8',
+              title: 'Limpieza y Sutura',
+              description: 'Servicio completo que incluye limpieza profunda de la herida antes de la sutura.',
+              price: 550.00,
+            ),
+            Service(
+              id: '9',
+              title: 'Sutura con Técnicas Especiales',
+              description: 'Aplicación de técnicas avanzadas de sutura para casos complejos o específicos.',
+              price: 700.00,
+            ),
+            Service(
+              id: '10',
+              title: 'Sutura Post-Quirúrgica',
+              description: 'Servicio de sutura especializado para heridas post-operatorias.',
+              price: 650.00,
+            ),
+          ],
+        ),
+      ];
+      _isLoading = false;
+    });
+  } catch (e) {
+    setState(() => _isLoading = false);
+    _showErrorDialog();
   }
+}
 
   void _showErrorDialog() {
     showDialog(

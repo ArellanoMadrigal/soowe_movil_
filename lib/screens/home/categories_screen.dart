@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'solicit_medical.dart';
 
+
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
 

@@ -1,5 +1,5 @@
-import 'package:appdesarrollo/services/auth_service.dart';
 import 'package:flutter/material.dart';
+import 'package:appdesarrollo/services/auth_service.dart';
 import '../../services/api_service.dart';
 import '../../transitions/search_page_transition.dart';
 import 'profile_view.dart';
@@ -23,194 +23,115 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _notifications = [];
   final ApiService _apiService = ApiService();
   String _userName = '';
+  String? _profileImageUrl;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
-      final userId = AuthService().getCurrentUserId();
+      final authService = AuthService();
+      final userId = authService.getCurrentUserId();
+      
       if (userId == null) {
-        if (mounted) {
-          Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-        }
+        await _handleLogout();
         return;
       }
 
-      final userName = AuthService().getUserName();
-      if (userName != null && userName.isNotEmpty) {
+      try {
+        final userData = await authService.getUserProfile();
+        if (!mounted) return;
+        
         setState(() {
-          _userName = userName;
+          _userName = '${userData['nombre']} ${userData['apellido']}'.trim();
+          _profileImageUrl = userData['foto_perfil']?['url'];
         });
-      } else {
-        try {
-          final userData = await _apiService.getUserProfile(userId);
-          if (mounted) {
-            setState(() {
-              _userName = '${userData['nombre']} ${userData['apellido']}'.trim();
-            });
-          }
-        } catch (e) {
-          debugPrint("Error obteniendo perfil: $e");
-        }
+      } catch (e) {
+        debugPrint("Error obteniendo perfil: $e");
       }
 
-      try {
-        final allRequests = await RequestService().getAllRequests(
-          usuarioId: int.tryParse(userId) ?? 0,
-          organizacionId: 0,
-        );
-        final allNotifications = await _apiService.fetchNotifications();
+      if (!mounted) return;
 
-        if (mounted) {
-          setState(() {
-            _requests = allRequests.where((r) => r.estado == 'activo').toList();
-            _notifications = allNotifications.where((n) => !n['read']).toList();
-          });
-        }
+      try {
+        final futures = await Future.wait([
+          RequestService().getAllRequests(
+            usuarioId: int.tryParse(userId) ?? 0,
+            organizacionId: 0,
+          ),
+          _apiService.fetchNotifications(),
+        ]);
+
+        if (!mounted) return;
+
+        setState(() {
+          _requests = (futures[0] as List<Request>).where((r) => r.estado == 'activo').toList();
+          _notifications = (futures[1] as List<Map<String, dynamic>>).where((n) => !n['read']).toList();
+        });
       } catch (e) {
-        debugPrint("Error cargando datos: $e");
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al cargar datos: $e')),
-          );
-        }
+        debugPrint("Error cargando datos adicionales: $e");
       }
     } catch (e) {
       debugPrint("Error general: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar datos: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  void _toggleNotifications() =>
-      setState(() => _showNotifications = !_showNotifications);
-      
-  void _navigateToProfile() => setState(() => _selectedIndex = 2);
-  
-  void _logout() async {
-    await AuthService().logout();
-    if (mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+  Future<void> _handleLogout() async {
+    try {
+      await AuthService().logout();
+      if (!mounted) return;
+      await Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/login',
+        (route) => false,
+      );
+    } catch (e) {
+      debugPrint("Error durante logout: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al cerrar sesión')),
+      );
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      body: Stack(
-        children: [
-          IndexedStack(
-            index: _selectedIndex,
-            children: [
-              _ServicesView(
-                userName: _userName,
-                onProfileTap: _navigateToProfile,
-                onNotificationTap: _toggleNotifications,
-                apiService: _apiService,
-              ),
-              RequestsView(requests: _requests.map((request) => request.toMap()).toList()),
-              ProfileView(
-                onLogout: _logout,
-              ),
-            ],
-          ),
-          if (_showNotifications)
-            _NotificationsOverlay(
-              notifications: _notifications,
-              onDismiss: _toggleNotifications,
-            ),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        elevation: 0,
-        height: 65,
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.medical_services_outlined),
-            selectedIcon: Icon(Icons.medical_services),
-            label: 'Servicios',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.description_outlined),
-            selectedIcon: Icon(Icons.description),
-            label: 'Solicitudes',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Perfil',
-          ),
-        ],
-      ),
-    );
+  void _toggleNotifications() {
+    if (!mounted) return;
+    setState(() {
+      _showNotifications = !_showNotifications;
+    });
   }
-}
 
-class _ServicesView extends StatefulWidget {
-  final String userName;
-  final VoidCallback onProfileTap;
-  final VoidCallback onNotificationTap;
-  final ApiService apiService;
+  void _navigateToProfile() {
+    if (!mounted) return;
+    setState(() {
+      _selectedIndex = 2;
+    });
+  }
 
-  const _ServicesView({
-    required this.userName,
-    required this.onProfileTap,
-    required this.onNotificationTap,
-    required this.apiService,
-  });
-
-  @override
-  State<_ServicesView> createState() => _ServicesViewState();
-}
-
-class _ServicesViewState extends State<_ServicesView> {
-  final TextEditingController _searchController = TextEditingController();
-  final services = [
-    ServiceModel(
-      id: '1',
-      title: 'Cuidados Básicos del Paciente',
-      nurses: 1265,
-      icon: Icons.medical_services_outlined,
-    ),
-    ServiceModel(
-      id: '2',
-      title: 'Atención Postoperatoria',
-      nurses: 523,
-      icon: Icons.healing_outlined,
-    ),
-    ServiceModel(
-      id: '3',
-      title: 'Suturas y Retiro de Suturas',
-      nurses: 223,
-      icon: Icons.cut_outlined,
-    ),
-    ServiceModel(
-      id: '4',
-      title: 'Limpieza y Curación de Heridas',
-      nurses: 223,
-      icon: Icons.cleaning_services_outlined,
-    ),
-    ServiceModel(
-      id: '5',
-      title: 'Control de Enfermedades Crónicas',
-      nurses: 223,
-      icon: Icons.monitor_heart_outlined,
-    ),
-    ServiceModel(
-      id: '6',
-      title: 'Vacunación',
-      nurses: 223,
-      icon: Icons.vaccines_outlined,
-    ),
-  ];
-
-  void _navigateToCategories() {
-    Navigator.push(
+  void _navigateToCategories() async {
+    if (!mounted) return;
+    await Navigator.push(
       context,
       SearchPageTransition(
         page: const CategoriesScreen(),
@@ -218,8 +139,9 @@ class _ServicesViewState extends State<_ServicesView> {
     );
   }
 
-  void _navigateToListService(ServiceModel service) {
-    Navigator.push(
+  void _navigateToListService(ServiceModel service) async {
+    if (!mounted) return;
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ListServiceScreen(
@@ -231,33 +153,169 @@ class _ServicesViewState extends State<_ServicesView> {
   }
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return WillPopScope(
+      onWillPop: () async => false,
+      child: Scaffold(
+        key: _scaffoldKey,
+        body: Stack(
+          children: [
+            IndexedStack(
+              index: _selectedIndex,
+              children: [
+                _ServicesView(
+                  userName: _userName,
+                  profileImageUrl: _profileImageUrl,
+                  onProfileTap: _navigateToProfile,
+                  onNotificationTap: _toggleNotifications,
+                  onCategoryTap: _navigateToCategories,
+                  onServiceTap: _navigateToListService,
+                  onRefresh: _loadData,
+                ),
+                RequestsView(
+                  requests: _requests.map((request) => request.toMap()).toList(),
+                ),
+                ProfileView(
+                  onLogout: _handleLogout,
+                ),
+              ],
+            ),
+            if (_showNotifications)
+              _NotificationsOverlay(
+                notifications: _notifications,
+                onDismiss: _toggleNotifications,
+              ),
+          ],
+        ),
+        bottomNavigationBar: NavigationBar(
+          elevation: 0,
+          height: 65,
+          selectedIndex: _selectedIndex,
+          onDestinationSelected: (index) {
+            if (!mounted) return;
+            setState(() {
+              _selectedIndex = index;
+            });
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.medical_services_outlined),
+              selectedIcon: Icon(Icons.medical_services),
+              label: 'Servicios',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.description_outlined),
+              selectedIcon: Icon(Icons.description),
+              label: 'Solicitudes',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
+              label: 'Perfil',
+            ),
+          ],
+        ),
+      ),
+    );
   }
+}
+
+class _ServicesView extends StatelessWidget {
+  final String userName;
+  final String? profileImageUrl;
+  final VoidCallback onProfileTap;
+  final VoidCallback onNotificationTap;
+  final VoidCallback onCategoryTap;
+  final Function(ServiceModel) onServiceTap;
+  final Future<void> Function() onRefresh;
+
+  const _ServicesView({
+    required this.userName,
+    this.profileImageUrl,
+    required this.onProfileTap,
+    required this.onNotificationTap,
+    required this.onCategoryTap,
+    required this.onServiceTap,
+    required this.onRefresh,
+  });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final services = [
+      ServiceModel(
+        id: '1',
+        title: 'Cuidados Básicos del Paciente',
+        nurses: 1265,
+        icon: Icons.medical_services_outlined,
+      ),
+      ServiceModel(
+        id: '2',
+        title: 'Atención Postoperatoria',
+        nurses: 523,
+        icon: Icons.healing_outlined,
+      ),
+      ServiceModel(
+        id: '3',
+        title: 'Suturas y Retiro de Suturas',
+        nurses: 223,
+        icon: Icons.cut_outlined,
+      ),
+      ServiceModel(
+        id: '4',
+        title: 'Limpieza y Curación de Heridas',
+        nurses: 223,
+        icon: Icons.cleaning_services_outlined,
+      ),
+      ServiceModel(
+        id: '5',
+        title: 'Control de Enfermedades Crónicas',
+        nurses: 223,
+        icon: Icons.monitor_heart_outlined,
+      ),
+      ServiceModel(
+        id: '6',
+        title: 'Vacunación',
+        nurses: 223,
+        icon: Icons.vaccines_outlined,
+      ),
+    ];
 
-    return Scaffold(
-      body: CustomScrollView(
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           SliverAppBar(
             elevation: 0,
             pinned: true,
+            automaticallyImplyLeading: false,
             backgroundColor: Colors.white,
             title: GestureDetector(
-              onTap: widget.onProfileTap,
+              onTap: onProfileTap,
               child: Row(
                 children: [
                   CircleAvatar(
+                    radius: 20,
                     backgroundColor: colorScheme.primary.withOpacity(0.1),
-                    child: const Icon(Icons.person_outline),
+                    backgroundImage: profileImageUrl != null 
+                      ? NetworkImage(profileImageUrl!) 
+                      : null,
+                    child: profileImageUrl == null
+                      ? const Icon(Icons.person_outline)
+                      : null,
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    widget.userName.isEmpty ? 'Usuario' : widget.userName,
+                    userName.isEmpty ? 'Usuario' : userName,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -273,7 +331,7 @@ class _ServicesViewState extends State<_ServicesView> {
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
-                  onPressed: widget.onNotificationTap,
+                  onPressed: onNotificationTap,
                   icon: const Icon(Icons.notifications_outlined),
                   tooltip: 'Notificaciones',
                 ),
@@ -294,8 +352,8 @@ class _ServicesViewState extends State<_ServicesView> {
                   ),
                   const SizedBox(height: 16),
                   TextField(
-                    controller: _searchController,
-                    onTap: _navigateToCategories,
+                    readOnly: true,
+                    onTap: onCategoryTap,
                     decoration: InputDecoration(
                       hintText: 'Buscar servicios',
                       prefixIcon: const Icon(Icons.search),
@@ -327,7 +385,7 @@ class _ServicesViewState extends State<_ServicesView> {
               delegate: SliverChildBuilderDelegate(
                 (context, index) => _ServiceCard(
                   service: services[index],
-                  onTap: () => _navigateToListService(services[index]),
+                  onTap: () => onServiceTap(services[index]),
                 ),
                 childCount: services.length,
               ),
@@ -473,29 +531,34 @@ class _NotificationsOverlay extends StatelessWidget {
                           child: Text('No hay notificaciones nuevas'),
                         )
                       else
-                        ListView.separated(
-                          shrinkWrap: true,
-                          physics: const ClampingScrollPhysics(),
-                          itemCount: notifications.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final notification = notifications[index];
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                child: Icon(
-                                  Icons.notifications_none,
-                                  color: Theme.of(context).colorScheme.primary,
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: MediaQuery.of(context).size.height * 0.6,
+                          ),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            physics: const ClampingScrollPhysics(),
+                            itemCount: notifications.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final notification = notifications[index];
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                  child: Icon(
+                                    Icons.notifications_none,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
                                 ),
-                              ),
-                              title: Text(notification['title'] ?? ''),
-                              subtitle: Text(notification['message'] ?? ''),
-                              trailing: Text(
-                                notification['time'] ?? '',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            );
-                          },
+                                title: Text(notification['title'] ?? ''),
+                                subtitle: Text(notification['message'] ?? ''),
+                                trailing: Text(
+                                  notification['time'] ?? '',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              );
+                            },
+                          ),
                         ),
                     ],
                   ),

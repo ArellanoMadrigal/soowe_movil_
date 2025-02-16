@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class RequestsView extends StatelessWidget {
   final List<Map<String, dynamic>> requests;
@@ -140,7 +141,7 @@ class _RequestList extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            request['service'],
+                            request['service']['title'],
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -177,7 +178,7 @@ class _RequestList extends StatelessWidget {
                     width: double.infinity,
                     child: FilledButton.icon(
                       onPressed: () {
-                        // Navegar a detalles
+                        _showRequestDetails(context, request);
                       },
                       icon: const Icon(Icons.visibility_outlined),
                       label: const Text('Ver detalles'),
@@ -192,6 +193,132 @@ class _RequestList extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  void _showRequestDetails(BuildContext context, Map<String, dynamic> request) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) => ListView(
+          controller: scrollController,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Detalles de la Solicitud',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Estado de la Solicitud
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: const [
+                        Icon(
+                          Icons.pending_outlined,
+                          color: Colors.white,
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          'Pendiente de Asignación de Enfermero',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildDetailRow('Servicio', request['service']['title']),
+                  _buildDetailRow('Fecha', request['date']),
+                  _buildDetailRow('Hora', request['time']),
+                  const Divider(),
+                  
+                  Text(
+                    'Información del Paciente',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  _buildDetailRow('Nombre', request['patient']['name']),
+                  _buildDetailRow('Edad', request['patient']['age'].toString()),
+                  _buildDetailRow('Teléfono', request['patient']['phone']),
+                  _buildDetailRow('Condición', request['patient']['condition']),
+                  const Divider(),
+                  
+                  Text(
+                    'Ubicación',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  _buildDetailRow('Dirección', request['location']['address']),
+                  const Divider(),
+                  
+                  Text(
+                    'Pago',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  _buildDetailRow('Método', 
+                    request['payment']['method'] == 'card' 
+                      ? 'Tarjeta de Crédito/Débito' 
+                      : 'Efectivo'
+                  ),
+                  _buildDetailRow('Estado de Pago', 'Pago Procesado'),
+                  _buildDetailRow('Total', 
+                    NumberFormat.currency(
+                      symbol: '\$', 
+                      decimalDigits: 2
+                    ).format(request['service']['price'])
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w500,
+              color: Colors.grey,
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
