@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:path/path.dart' as path;
 import 'auth_service.dart';
 
 class ApiService {
@@ -16,8 +18,8 @@ class ApiService {
       : _dio = Dio(
           BaseOptions(
             baseUrl: "https://soowe-apidata.onrender.com/",
-            connectTimeout: const Duration(seconds: 45),  // Aumentado a 45s
-            receiveTimeout: const Duration(seconds: 45),  // Aumentado a 45s
+            connectTimeout: const Duration(seconds: 45),
+            receiveTimeout: const Duration(seconds: 45),
             headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
@@ -145,15 +147,48 @@ class ApiService {
     }
 
     try {
-      final fileName = imageFile.path.split('/').last;
-      final formData = FormData.fromMap({
-        'foto_perfil': await MultipartFile.fromFile(
-          imageFile.path, 
-          filename: fileName
-        )
-      });
+      // Obtener extensión y tipo MIME
+      final extension = path.extension(imageFile.path).toLowerCase();
+      String mimeType;
+      
+      switch (extension) {
+        case '.jpg':
+        case '.jpeg':
+          mimeType = 'jpeg';
+          break;
+        case '.png':
+          mimeType = 'png';
+          break;
+        case '.gif':
+          mimeType = 'gif';
+          break;
+        default:
+          throw Exception('Formato no soportado. Use JPG, PNG o GIF');
+      }
 
       final userId = await _getCurrentUserId();
+      if (userId == null) {
+        throw Exception("Usuario no encontrado");
+      }
+
+      // Verificar tamaño del archivo
+      final fileSize = await imageFile.length();
+      if (fileSize > 5 * 1024 * 1024) {
+        throw Exception('El archivo es demasiado grande (máximo 5MB)');
+      }
+
+      // Crear FormData
+      final formData = FormData.fromMap({
+        'foto_perfil': await MultipartFile.fromFile(
+          imageFile.path,
+          filename: 'profile_picture$extension',
+          contentType: MediaType('image', mimeType),
+        ),
+      });
+
+      _logger.d('Iniciando subida de imagen para usuario: $userId');
+      _logger.d('Tipo MIME: image/$mimeType');
+      _logger.d('Tamaño del archivo: ${(fileSize / 1024 / 1024).toStringAsFixed(2)}MB');
 
       final response = await _dio.put(
         "api/mobile/usuarios/$userId/profile/upload-picture",
@@ -161,8 +196,11 @@ class ApiService {
         options: Options(
           headers: {
             'Authorization': "Bearer $_authToken",
-            'Content-Type': 'multipart/form-data'
+            'Accept': 'application/json',
           },
+          contentType: 'multipart/form-data',
+          sendTimeout: const Duration(seconds: 60),
+          receiveTimeout: const Duration(seconds: 60),
         ),
       );
 
@@ -170,18 +208,29 @@ class ApiService {
       debugPrint('Respuesta uploadProfilePicture: ${response.data}');
 
       if (response.statusCode == 200 && response.data != null) {
-        return response.data['foto_perfil'] ?? {};
+        if (response.data['foto_perfil'] != null) {
+          return response.data['foto_perfil'];
+        } else if (response.data['url'] != null) {
+          return {'url': response.data['url']};
+        } else {
+          return response.data;
+        }
       }
 
       throw Exception("Error al subir imagen de perfil");
     } on DioException catch (e) {
       _logger.e('Error subiendo imagen de perfil', error: e);
       debugPrint('Error en uploadProfilePicture: ${e.response?.data}');
+      
+      if (e.response?.data != null && e.response?.data['message'] != null) {
+        throw Exception(e.response?.data['message']);
+      }
+      
       throw Exception(handleError(e));
     } catch (e) {
       _logger.e('Error inesperado en uploadProfilePicture', error: e);
       debugPrint('Error inesperado en uploadProfilePicture: $e');
-      throw Exception('Error al subir imagen de perfil');
+      throw Exception('Error al subir imagen de perfil: ${e.toString()}');
     }
   }
 

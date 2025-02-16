@@ -116,28 +116,58 @@ class _ProfileViewState extends State<ProfileView> {
 
   Future<void> _handleProfileImageUpload() async {
     try {
-      final pickedFile = await _picker.pickImage(
+      // 1. Seleccionar imagen
+      final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1024,
         maxHeight: 1024,
         imageQuality: 80,
       );
       
-      if (pickedFile != null) {
-        final File imageFile = File(pickedFile.path);
-        
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => const Center(
+      if (pickedFile == null) return;
+
+      // 2. Convertir a File y verificar tamaño
+      final File imageFile = File(pickedFile.path);
+      final fileSize = await imageFile.length();
+      
+      if (!mounted) return;
+      
+      // Verificar tamaño máximo (5MB)
+      if (fileSize > 5 * 1024 * 1024) {
+        _showErrorSnackBar('La imagen es demasiado grande (máximo 5MB)');
+        return;
+      }
+
+      // 3. Mostrar indicador de carga
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => WillPopScope(
+          onWillPop: () async => false,
+          child: const Center(
             child: CircularProgressIndicator(),
           ),
-        );
+        ),
+      );
 
-        try {
-          final uploadedImage = await _apiService.uploadProfilePicture(imageFile);
+      // 4. Subir imagen
+      try {
+        final userId = await _authService.getCurrentUserId();
+        if (userId == null) {
+          if (!mounted) return;
           Navigator.of(context).pop();
+          _showErrorSnackBar('Error de autenticación');
+          return;
+        }
 
+        final uploadedImage = await _apiService.uploadProfilePicture(imageFile);
+        
+        if (!mounted) return;
+        Navigator.of(context).pop();
+
+        // 5. Actualizar UI con la nueva imagen
+        if (uploadedImage['url'] != null) {
           setState(() {
             profileImageUrl = uploadedImage['url'];
           });
@@ -146,18 +176,36 @@ class _ProfileViewState extends State<ProfileView> {
             const SnackBar(
               content: Text('Imagen de perfil actualizada'),
               backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
             ),
           );
-        } catch (e) {
-          Navigator.of(context).pop();
-          _showErrorSnackBar('No se pudo subir la imagen');
+          
+          // Opcional: Recargar el perfil completo
+          await _loadUserProfile();
+        } else {
+          _showErrorSnackBar('Error al procesar la imagen');
         }
+      } catch (e) {
+        if (!mounted) return;
+        Navigator.of(context).pop();
+        _showErrorSnackBar('No se pudo subir la imagen: ${e.toString()}');
       }
     } catch (e) {
-      _showErrorSnackBar('Error al seleccionar imagen');
+      if (!mounted) return;
+      _showErrorSnackBar('Error al seleccionar imagen: ${e.toString()}');
     }
   }
 
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
   Future<void> _handleEdit() async {
     final result = await Navigator.push(
       context,
@@ -192,14 +240,7 @@ class _ProfileViewState extends State<ProfileView> {
     }
   }
 
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
