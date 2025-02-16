@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../home/home_screen.dart';
 
 class _Strings {
   static const String title = 'SOOWE';
@@ -21,6 +22,18 @@ class _Strings {
   static const String errorPasswordLength = 'La contraseña debe tener al menos 6 caracteres';
   static const String errorPasswordMismatch = 'Las contraseñas no coinciden';
   static const String errorAcceptTerms = 'Debe aceptar los términos y condiciones';
+
+  // Constantes para la pantalla de bienvenida
+  static const String welcomeSubtitle = 'Con Soowe podrás:';
+  static const String searchTitle = 'Buscar y Contratar Enfermeros';
+  static const String searchDescription = 'Encuentra el profesional ideal para tu cuidado';
+  static const String availabilityTitle = 'Disponibilidad 24/7';
+  static const String availabilityDescription = 'Atención médica cuando la necesites';
+  static const String securityTitle = 'Simple y Seguro';
+  static const String securityDescription = 'Profesionales verificados y proceso sencillo';
+  static const String qualityTitle = 'Enfermeros Calificados';
+  static const String qualityDescription = 'Los mejores profesionales a tu disposición';
+  static const String startButton = '¡Vamos!';
 }
 
 class FilledTextField extends StatelessWidget {
@@ -174,14 +187,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
         correo: _emailController.text.trim(),
         contrasena: _passwordController.text,
         confirmarContrasena: _confirmPasswordController.text,
-        telefono: 'Pendiente de agregar', // Valor predeterminado
-        direccion: 'Pendiente de agregar', // Valor predeterminado
+        telefono: 'Pendiente de agregar',
+        direccion: 'Pendiente de agregar',
       );
 
       if (success && mounted) {
-        _showSuccessSnackBar(_Strings.successMessage);
-        await Future.delayed(const Duration(seconds: 1));
-        if (mounted) Navigator.pop(context, true);
+        // Iniciar sesión automáticamente después del registro
+        final loginSuccess = await AuthService().loginUser(
+          correo: _emailController.text.trim(),
+          contrasena: _passwordController.text,
+        );
+
+        if (loginSuccess && mounted) {
+          // Mostrar pantalla de bienvenida
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => WelcomeScreen(
+                userName: _nameController.text.split(' ')[0],
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) _showErrorSnackBar(e.toString().replaceAll('Exception:', '').trim());
@@ -194,14 +221,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         SnackBar(
           content: Text(message),
           backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-
-  void _showSuccessSnackBar(String message) => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -393,5 +412,158 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordFocus.dispose();
     _confirmPasswordFocus.dispose();
     super.dispose();
+  }
+}
+
+class WelcomeScreen extends StatelessWidget {
+  final String userName;
+  
+  const WelcomeScreen({
+    super.key,
+    required this.userName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 40),
+              const Text(
+                'SOOWE',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2B5BA9),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              Text(
+                '¡Bienvenido/a $userName!',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                _Strings.welcomeSubtitle,
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 40),
+              _BenefitItem(
+                icon: Icons.search,
+                title: _Strings.searchTitle,
+                description: _Strings.searchDescription,
+              ),
+              _BenefitItem(
+                icon: Icons.access_time,
+                title: _Strings.availabilityTitle,
+                description: _Strings.availabilityDescription,
+              ),
+              _BenefitItem(
+                icon: Icons.verified_user,
+                title: _Strings.securityTitle,
+                description: _Strings.securityDescription,
+              ),
+              _BenefitItem(
+                icon: Icons.star,
+                title: _Strings.qualityTitle,
+                description: _Strings.qualityDescription,
+              ),
+              const Spacer(),
+              FilledButton(
+                onPressed: () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF2B5BA9),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  _Strings.startButton,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BenefitItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _BenefitItem({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2B5BA9).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: const Color(0xFF2B5BA9),
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black.withOpacity(0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
